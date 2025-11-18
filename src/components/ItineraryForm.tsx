@@ -40,7 +40,8 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   try {
-    const response = await fetch("https://loud-radios-lead.loca.lt/webhook/tripgenie-webhook", {
+    const response = await fetch("https://approach-assignment-evolution-surgical.trycloudflare.com/webhook/tripgenie-webhook", {
+
       method: "POST",
       headers: {
         "Content-Type": "application/json",
