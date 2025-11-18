@@ -36,12 +36,32 @@ const ItineraryForm = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Store form data in sessionStorage for the results page
-    sessionStorage.setItem('itineraryData', JSON.stringify(formData));
-    navigate('/results');
-  };
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const response = await fetch("https://loud-radios-lead.loca.lt/webhook/tripgenie-webhook", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+
+    sessionStorage.setItem(
+      "generatedItinerary",
+      data.itinerary || data.message || JSON.stringify(data)
+    );
+
+    navigate("/results");
+  } catch (error) {
+    console.error("Error generating itinerary:", error);
+    alert("Could not connect to AI server. Check if n8n and LocalTunnel are running.");
+  }
+};
+
 
   return (
     <section className="py-16">
