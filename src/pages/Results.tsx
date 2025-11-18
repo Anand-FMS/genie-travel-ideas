@@ -15,20 +15,26 @@ interface ItineraryData {
 
 const Results = () => {
   const navigate = useNavigate();
+
   const [itineraryData, setItineraryData] = useState<ItineraryData | null>(null);
+  const [generatedItinerary, setGeneratedItinerary] = useState<string>("");
 
   useEffect(() => {
     const storedData = sessionStorage.getItem('itineraryData');
+    const itinerary = sessionStorage.getItem('generatedItinerary');
+
     if (storedData) {
       setItineraryData(JSON.parse(storedData));
     } else {
       navigate('/');
     }
+
+    if (itinerary) {
+      setGeneratedItinerary(itinerary);
+    }
   }, [navigate]);
 
-  if (!itineraryData) {
-    return null;
-  }
+  if (!itineraryData) return null;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -36,26 +42,22 @@ const Results = () => {
       <main className="flex-1 py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto space-y-8">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate('/')}
-              className="gap-2"
-            >
+            
+            <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Home
             </Button>
 
             <div className="text-center space-y-4">
               <h1 className="text-4xl md:text-5xl font-bold">Your Itinerary</h1>
-              <p className="text-xl text-muted-foreground">
-                Based on your preferences
-              </p>
+              <p className="text-xl text-muted-foreground">Based on your preferences</p>
             </div>
 
             {/* Trip Summary */}
             <Card className="p-6">
               <h2 className="text-2xl font-bold mb-6">Trip Summary</h2>
               <div className="grid md:grid-cols-2 gap-6">
+                
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <MapPin className="h-5 w-5 text-primary" />
@@ -95,35 +97,26 @@ const Results = () => {
                     <p className="font-semibold">{itineraryData.interests.join(", ")}</p>
                   </div>
                 </div>
+
               </div>
             </Card>
 
-            {/* Placeholder for AI-generated itinerary */}
+            {/* AI-generated itinerary */}
             <Card className="p-8">
               <h2 className="text-2xl font-bold mb-4">Generated Itinerary</h2>
-              <div className="space-y-6 text-muted-foreground">
-                <p className="text-lg">
-                  Your personalized itinerary will appear here once connected to the AI API.
+
+              {generatedItinerary ? (
+                <pre className="whitespace-pre-wrap text-lg text-foreground">
+                  {generatedItinerary}
+                </pre>
+              ) : (
+                <p className="text-muted-foreground text-lg">
+                  Generating itinerary... Please wait.
                 </p>
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">Day 1: Placeholder</h3>
-                    <p>Morning activities, afternoon exploration, evening dining...</p>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">Day 2: Placeholder</h3>
-                    <p>Adventure activities, cultural experiences...</p>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">Day 3: Placeholder</h3>
-                    <p>Relaxation, shopping, local cuisine...</p>
-                  </div>
-                </div>
-                <p className="text-sm italic">
-                  Note: Connect your API endpoint to generate real AI-powered itineraries.
-                </p>
-              </div>
+              )}
+
             </Card>
+
           </div>
         </div>
       </main>
