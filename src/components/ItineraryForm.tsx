@@ -41,8 +41,8 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     const response = await fetch(
-  "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
-
+      "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,7 +64,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     alert("Could not connect to AI server. Check if n8n and the tunnel are running.");
   }
 };
-
 
 
   return (
