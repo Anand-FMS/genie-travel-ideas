@@ -37,33 +37,38 @@ const ItineraryForm = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      const response = await fetch(
-        "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
+  try {
+    const response = await fetch(
+      "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      }
+    );
 
-      const data = await response.json();
+    const data = await response.json();
 
-      sessionStorage.setItem(
-        "generatedItinerary",
-        data.itinerary || data.message || JSON.stringify(data)
-      );
+    // 🟢 FIX: save the form data so Results page can read it
+    sessionStorage.setItem("itineraryData", JSON.stringify(formData));
 
-      navigate("/results");
-    } catch (error) {
-      console.error("Error generating itinerary:", error);
-      alert("Could not connect to AI server. Check if n8n and the tunnel are running.");
-    }
-  };
+    // 🟢 Save AI response
+    sessionStorage.setItem(
+      "generatedItinerary",
+      data.itinerary || data.message || JSON.stringify(data)
+    );
+
+    navigate("/results");
+  } catch (error) {
+    console.error("Error generating itinerary:", error);
+    alert("Could not connect to AI server. Check if n8n and the tunnel are running.");
+  }
+};
+
 
   return (
     <section className="py-16">
