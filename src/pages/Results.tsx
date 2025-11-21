@@ -20,13 +20,14 @@ const Results = () => {
   const [generatedItinerary, setGeneratedItinerary] = useState<string>("");
 
   useEffect(() => {
-    const storedData = sessionStorage.getItem('itineraryData');
-    const itinerary = sessionStorage.getItem('generatedItinerary');
+    // Load saved form data
+    const storedData = sessionStorage.getItem("itineraryData");
+    const itinerary = sessionStorage.getItem("generatedItinerary");
 
     if (storedData) {
       setItineraryData(JSON.parse(storedData));
     } else {
-      navigate('/');
+      navigate("/");
     }
 
     if (itinerary) {
@@ -39,10 +40,11 @@ const Results = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
+
       <main className="flex-1 py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto space-y-8">
-            
+
             <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Home
@@ -56,8 +58,9 @@ const Results = () => {
             {/* Trip Summary */}
             <Card className="p-6">
               <h2 className="text-2xl font-bold mb-6">Trip Summary</h2>
+
               <div className="grid md:grid-cols-2 gap-6">
-                
+
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <MapPin className="h-5 w-5 text-primary" />
@@ -114,12 +117,12 @@ const Results = () => {
                   Generating itinerary... Please wait.
                 </p>
               )}
-
             </Card>
 
           </div>
         </div>
       </main>
+
       <Footer />
     </div>
   );
