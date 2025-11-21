@@ -40,14 +40,16 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   try {
-    const response = await fetch("https://approach-assignment-evolution-surgical.trycloudflare.com/webhook/tripgenie-webhook", {
-
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    });
+    const response = await fetch(
+      "https://NEW-CLOUDFLARE-URL.trycloudflare.com/webhook/tripgenie-webhook",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      }
+    );
 
     const data = await response.json();
 
@@ -59,9 +61,10 @@ const handleSubmit = async (e: React.FormEvent) => {
     navigate("/results");
   } catch (error) {
     console.error("Error generating itinerary:", error);
-    alert("Could not connect to AI server. Check if n8n and LocalTunnel are running.");
+    alert("Could not connect to AI server. Check if n8n and the tunnel are running.");
   }
 };
+
 
 
   return (
