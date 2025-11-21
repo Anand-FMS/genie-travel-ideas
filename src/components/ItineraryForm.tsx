@@ -41,8 +41,8 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     const response = await fetch(
-      "https://NEW-CLOUDFLARE-URL.trycloudflare.com/webhook/tripgenie-webhook",
-      {
+  "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
+
         method: "POST",
         headers: {
           "Content-Type": "application/json",
