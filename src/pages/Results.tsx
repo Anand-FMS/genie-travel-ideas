@@ -56,6 +56,27 @@ const Results = () => {
 
   if (!itineraryData || !itineraryObj) return null;
 
+  // Defensive check: ensure itinerary is an array and filter out any undefined entries
+  const validItinerary = Array.isArray(itineraryObj.itinerary) 
+    ? itineraryObj.itinerary.filter((day: ItineraryDay | undefined) => day !== undefined && day !== null)
+    : [];
+
+  if (validItinerary.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 py-16">
+          <div className="container mx-auto px-4 max-w-4xl text-center space-y-6">
+            <h1 className="text-3xl font-bold">No Itinerary Data</h1>
+            <p className="text-muted-foreground">The AI response format was unexpected. Please try generating again.</p>
+            <Button onClick={() => navigate('/')}>Back to Home</Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -135,7 +156,7 @@ const Results = () => {
           <div className="space-y-8">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
 
-            {itineraryObj.itinerary.map((day: ItineraryDay) => (
+            {validItinerary.map((day: ItineraryDay) => (
               <Card key={day.day} className="p-6 shadow-md space-y-5">
 
                 <h3 className="text-2xl font-bold">
