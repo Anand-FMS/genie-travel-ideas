@@ -56,11 +56,12 @@ const ItineraryForm = () => {
       sessionStorage.setItem("itineraryData", JSON.stringify(formData));
 
       // Extract JSON from Gemini
-      const aiText =
-        data?.content?.[0]?.parts?.[0]?.text ||
-        data?.parts?.[0]?.text ||
-        data?.text ||
-        JSON.stringify(data);
+     const aiText =
+  data?.content?.parts?.[0]?.text ||
+  data?.content?.[0]?.parts?.[0]?.text ||
+  data?.text ||
+  JSON.stringify(data);
+
 
       sessionStorage.setItem("generatedItinerary", aiText);
 
