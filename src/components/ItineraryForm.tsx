@@ -51,22 +51,20 @@ const ItineraryForm = () => {
       }
     );
 
-    // Read raw JSON from n8n
+    // Read JSON returned directly from Gemini
     const data = await response.json();
 
-    // Save form data for Results page
+    // Save form data
     sessionStorage.setItem("itineraryData", JSON.stringify(formData));
 
-    // Extract the Gemini model output (correct structure)
+    // Extract Gemini's text output
     const aiText =
-      data?.content?.[0]?.parts?.[0]?.text || // Gemini 2.5 Pro format
-      data?.text ||                           // fallback if structure changes
-      JSON.stringify(data);                   // absolute fallback
+      data?.content?.[0]?.parts?.[0]?.text ||  // correct Gemini path
+      JSON.stringify(data);                   // fallback
 
-    // Save AI-generated itinerary
+    // Save itinerary
     sessionStorage.setItem("generatedItinerary", aiText);
 
-    // Go to results page
     navigate("/results");
 
   } catch (error) {
@@ -74,6 +72,7 @@ const ItineraryForm = () => {
     alert("Could not connect to AI server. Check if n8n and the tunnel are running.");
   }
 };
+
 
 
   return (
