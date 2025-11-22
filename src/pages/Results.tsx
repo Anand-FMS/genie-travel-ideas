@@ -1,4 +1,4 @@
-im// src/pages/Results.tsx
+// src/pages/Results.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -124,9 +124,9 @@ const Results = () => {
 
   if (!itineraryObj) return null;
 
-  const interests = Array.isArray(itineraryObj.interests) ? itineraryObj.interests.join(", ") : "";
+  const interests = Array.isArray(itineraryObj?.interests) ? itineraryObj.interests.join(", ") : "N/A";
 
-  const days = Array.isArray(itineraryObj.itinerary) ? itineraryObj.itinerary : [];
+  const days = Array.isArray(itineraryObj?.itinerary) ? itineraryObj.itinerary : [];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -190,7 +190,7 @@ const Results = () => {
           <div className="space-y-8">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
 
-            {days.length === 0 ? (
+            {!days || days.length === 0 ? (
               <Card className="p-6">
                 <p className="text-muted-foreground">No daily items found in the AI response.</p>
               </Card>
