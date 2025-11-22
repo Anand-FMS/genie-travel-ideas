@@ -166,44 +166,54 @@ const Results = () => {
                 <div className="space-y-4">
 
                   {/* Morning */}
-                  <div>
-                    <p className="font-semibold text-lg">🌅 Morning: {day.morning.title}</p>
-                    <p className="text-muted-foreground">{day.morning.description}</p>
-                  </div>
+                  {day.morning && (
+                    <div>
+                      <p className="font-semibold text-lg">🌅 Morning: {day.morning.title}</p>
+                      <p className="text-muted-foreground">{day.morning.description}</p>
+                    </div>
+                  )}
 
                   {/* Afternoon */}
-                  <div>
-                    <p className="font-semibold text-lg">🌞 Afternoon: {day.afternoon.title}</p>
-                    <p className="text-muted-foreground">{day.afternoon.description}</p>
-                  </div>
+                  {day.afternoon && (
+                    <div>
+                      <p className="font-semibold text-lg">🌞 Afternoon: {day.afternoon.title}</p>
+                      <p className="text-muted-foreground">{day.afternoon.description}</p>
+                    </div>
+                  )}
 
                   {/* Evening */}
-                  <div>
-                    <p className="font-semibold text-lg">🌙 Evening: {day.evening.title}</p>
-                    <p className="text-muted-foreground">{day.evening.description}</p>
-                  </div>
+                  {day.evening && (
+                    <div>
+                      <p className="font-semibold text-lg">🌙 Evening: {day.evening.title}</p>
+                      <p className="text-muted-foreground">{day.evening.description}</p>
+                    </div>
+                  )}
 
                   {/* Food */}
-                  <div>
-                    <p className="font-semibold text-lg">🍽 Food Recommendations</p>
-                    <ul className="list-disc ml-6 space-y-1 text-muted-foreground">
-                      {day.food_recommendations.breakfast && (
-                        <li><strong>Breakfast:</strong> {day.food_recommendations.breakfast}</li>
-                      )}
-                      {day.food_recommendations.lunch && (
-                        <li><strong>Lunch:</strong> {day.food_recommendations.lunch}</li>
-                      )}
-                      {day.food_recommendations.dinner && (
-                        <li><strong>Dinner:</strong> {day.food_recommendations.dinner}</li>
-                      )}
-                    </ul>
-                  </div>
+                  {day.food_recommendations && (
+                    <div>
+                      <p className="font-semibold text-lg">🍽 Food Recommendations</p>
+                      <ul className="list-disc ml-6 space-y-1 text-muted-foreground">
+                        {day.food_recommendations.breakfast && (
+                          <li><strong>Breakfast:</strong> {day.food_recommendations.breakfast}</li>
+                        )}
+                        {day.food_recommendations.lunch && (
+                          <li><strong>Lunch:</strong> {day.food_recommendations.lunch}</li>
+                        )}
+                        {day.food_recommendations.dinner && (
+                          <li><strong>Dinner:</strong> {day.food_recommendations.dinner}</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
 
                   {/* Tips */}
-                  <div>
-                    <p className="font-semibold text-lg">💡 Local Tips</p>
-                    <p className="text-muted-foreground">{day.local_tips}</p>
-                  </div>
+                  {day.local_tips && (
+                    <div>
+                      <p className="font-semibold text-lg">💡 Local Tips</p>
+                      <p className="text-muted-foreground">{day.local_tips}</p>
+                    </div>
+                  )}
 
                 </div>
 
