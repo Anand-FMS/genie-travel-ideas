@@ -7,17 +7,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, DollarSign, Calendar, Heart, ArrowLeft } from "lucide-react";
 
+type Nullable<T> = T | undefined | null;
+
 interface ItineraryDay {
-  day: number;
+  day?: number;
   theme?: string;
-  morning?: { title?: string; description?: string };
-  afternoon?: { title?: string; description?: string };
-  evening?: { title?: string; description?: string };
-  food_recommendations?: {
-    breakfast?: string;
-    lunch?: string;
-    dinner?: string;
-  };
+  morning?: { title?: string; description?: string } | string;
+  afternoon?: { title?: string; description?: string } | string;
+  evening?: { title?: string; description?: string } | string;
+  food_recommendations?: { breakfast?: string; lunch?: string; dinner?: string };
   local_tips?: string;
 }
 
@@ -36,66 +34,53 @@ const Results = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const rawItinerary = sessionStorage.getItem("generatedItinerary");
-    const formDataRaw = sessionStorage.getItem("itineraryData");
+    const storedForm = sessionStorage.getItem("itineraryData");
+    const raw = sessionStorage.getItem("generatedItinerary");
 
-    if (!formDataRaw) {
+    if (!storedForm) {
       navigate("/");
       return;
     }
 
-    if (!rawItinerary) {
-      setErrorMessage("No itinerary found. Please generate one first.");
+    if (!raw) {
+      setErrorMessage("No generated itinerary found. Please generate one first.");
       return;
     }
 
-    // Try to parse the saved string into an object.
-    // AI output may already be valid JSON string, or it may be an escaped JSON.
+    // Parse safely. raw should be stringified JSON (we saved JSON.stringify(data) in the form)
     let parsed: any = null;
-
     try {
-      // If it's already an object string like {"trip_name": ...}
-      parsed = JSON.parse(rawItinerary);
-    } catch {
-      // If parse failed, maybe rawItinerary has extra characters, try to extract JSON substring
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      // If parse fails, try to extract JSON substring (handles cases where AI returned text that included JSON)
       try {
-        const first = rawItinerary.indexOf("{");
-        const last = rawItinerary.lastIndexOf("}");
+        const first = raw.indexOf("{");
+        const last = raw.lastIndexOf("}");
         if (first !== -1 && last !== -1 && last > first) {
-          const sub = rawItinerary.slice(first, last + 1);
-          parsed = JSON.parse(sub);
+          parsed = JSON.parse(raw.slice(first, last + 1));
         } else {
-          // Could be plain text itinerary — set a fallback object
+          // fallback to show raw text inside a simple itinerary
           parsed = {
             trip_name: "Generated Itinerary",
-            destination: undefined,
-            itinerary: [
-              {
-                day: 1,
-                theme: "Itinerary (raw text)",
-                morning: { title: "", description: rawItinerary }
-              }
-            ]
+            itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: raw } }]
           };
         }
-      } catch (e) {
+      } catch (e2) {
         parsed = {
           trip_name: "Generated Itinerary",
-          itinerary: [
-            { day: 1, theme: "Itinerary (raw)", morning: { title: "", description: rawItinerary } }
-          ]
+          itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: raw } }]
         };
       }
     }
 
-    // If parsed has a top-level content.parts[0].text (rare), unwrap it
+    // Some workflows produce an envelope object { content: { parts: [{ text: "..." }] } }
+    // If so, try to parse the inner text as JSON.
     if (parsed?.content?.[0]?.parts?.[0]?.text) {
       const inner = parsed.content[0].parts[0].text;
       try {
-        const innerParsed = JSON.parse(inner);
-        parsed = innerParsed;
+        parsed = JSON.parse(inner);
       } catch {
-        // leave as-is: treat inner text as description
+        // leave the inner text as description if it's not strict JSON
         parsed = {
           trip_name: parsed.trip_name || "Generated Itinerary",
           itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: inner } }]
@@ -124,9 +109,11 @@ const Results = () => {
 
   if (!itineraryObj) return null;
 
-  const interests = Array.isArray(itineraryObj?.interests) ? itineraryObj.interests.join(", ") : "N/A";
+  const interests = Array.isArray(itineraryObj.interests) && itineraryObj.interests.length > 0
+    ? itineraryObj.interests.join(", ")
+    : "—";
 
-  const days = Array.isArray(itineraryObj?.itinerary) ? itineraryObj.itinerary : [];
+  const days: ItineraryDay[] = Array.isArray(itineraryObj.itinerary) ? itineraryObj.itinerary : [];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -146,9 +133,7 @@ const Results = () => {
             <h2 className="text-2xl font-bold">Trip Summary</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MapPin className="h-5 w-5 text-primary" />
-                </div>
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><MapPin className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Destination</p>
                   <p className="font-semibold">{itineraryObj.destination || "To be determined"}</p>
@@ -156,9 +141,7 @@ const Results = () => {
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                </div>
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><DollarSign className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Budget</p>
                   <p className="font-semibold">{itineraryObj.budget || "Flexible"}</p>
@@ -166,22 +149,18 @@ const Results = () => {
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-primary" />
-                </div>
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Calendar className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="font-semibold">{itineraryObj.duration_days || "—"} Days</p>
+                  <p className="font-semibold">{itineraryObj.duration_days ?? "—"} Days</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Heart className="h-5 w-5 text-primary" />
-                </div>
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Heart className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Interests</p>
-                  <p className="font-semibold">{interests || "—"}</p>
+                  <p className="font-semibold">{interests}</p>
                 </div>
               </div>
             </div>
@@ -189,11 +168,8 @@ const Results = () => {
 
           <div className="space-y-8">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
-
             {!days || days.length === 0 ? (
-              <Card className="p-6">
-                <p className="text-muted-foreground">No daily items found in the AI response.</p>
-              </Card>
+              <Card className="p-6"><p className="text-muted-foreground">No daily items found in the AI response.</p></Card>
             ) : (
               days.map((d, idx) => {
                 const dayNum = d?.day ?? idx + 1;
@@ -201,27 +177,34 @@ const Results = () => {
                   <Card key={dayNum} className="p-6 shadow-md space-y-4">
                     <h3 className="text-2xl font-bold">Day {dayNum}{d?.theme ? `: ${d.theme}` : ""}</h3>
 
-                    {d.morning && (
+                    {/* Morning */}
+                    {d.morning && typeof d.morning === "object" && (
                       <div>
                         <p className="font-semibold text-lg">🌅 Morning: {d.morning.title || ""}</p>
                         <p className="text-muted-foreground">{d.morning.description || ""}</p>
                       </div>
                     )}
+                    {d.morning && typeof d.morning === "string" && <p className="text-muted-foreground">{d.morning}</p>}
 
-                    {d.afternoon && (
+                    {/* Afternoon */}
+                    {d.afternoon && typeof d.afternoon === "object" && (
                       <div>
                         <p className="font-semibold text-lg">🌞 Afternoon: {d.afternoon.title || ""}</p>
                         <p className="text-muted-foreground">{d.afternoon.description || ""}</p>
                       </div>
                     )}
+                    {d.afternoon && typeof d.afternoon === "string" && <p className="text-muted-foreground">{d.afternoon}</p>}
 
-                    {d.evening && (
+                    {/* Evening */}
+                    {d.evening && typeof d.evening === "object" && (
                       <div>
                         <p className="font-semibold text-lg">🌙 Evening: {d.evening.title || ""}</p>
                         <p className="text-muted-foreground">{d.evening.description || ""}</p>
                       </div>
                     )}
+                    {d.evening && typeof d.evening === "string" && <p className="text-muted-foreground">{d.evening}</p>}
 
+                    {/* Food */}
                     {d.food_recommendations && (
                       <div>
                         <p className="font-semibold text-lg">🍽 Food Recommendations</p>
@@ -233,6 +216,7 @@ const Results = () => {
                       </div>
                     )}
 
+                    {/* Tips */}
                     {d.local_tips && (
                       <div>
                         <p className="font-semibold text-lg">💡 Local Tips</p>
@@ -252,3 +236,4 @@ const Results = () => {
 };
 
 export default Results;
+
