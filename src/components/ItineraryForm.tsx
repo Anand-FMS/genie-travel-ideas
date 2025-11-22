@@ -51,24 +51,24 @@ const ItineraryForm = () => {
         }
       );
 
-      // If HTTP error:
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);
       }
 
-      // Expecting parsed JSON object from n8n/respond-to-webhook
-      const data = await response.json();
+      // Receive clean JSON returned by Respond to Webhook (n8n)
+      const cleanJson = await response.json();
 
-      // Save plain form data so Results page can show the summary
+      // Save user inputs
       sessionStorage.setItem("itineraryData", JSON.stringify(formData));
 
-      // Save the full parsed object (stringified) so Results can parse/display it
-      sessionStorage.setItem("generatedItinerary", JSON.stringify(data));
+      // Save Gemini JSON
+      sessionStorage.setItem("generatedItinerary", JSON.stringify(cleanJson));
 
       navigate("/results");
+
     } catch (error) {
       console.error("Error generating itinerary:", error);
-      alert("Could not connect to AI server or got an invalid response. Ensure n8n and tunnel are running and webhook returns valid JSON.");
+      alert("Could not connect to AI server or got invalid JSON. Check n8n & tunnel.");
     }
   };
 
@@ -80,13 +80,11 @@ const ItineraryForm = () => {
 
             {/* Destination */}
             <div className="space-y-3">
-              <Label htmlFor="destination" className="text-lg font-semibold flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                Destination
+              <Label className="text-lg font-semibold flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" /> Destination
               </Label>
               <Input
-                id="destination"
-                placeholder="e.g., Paris, Tokyo, Goa"
+                placeholder="e.g., Japan, Goa, Paris"
                 value={formData.destination}
                 onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
                 required
@@ -96,9 +94,8 @@ const ItineraryForm = () => {
 
             {/* Budget */}
             <div className="space-y-3">
-              <Label htmlFor="budget" className="text-lg font-semibold flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                Budget
+              <Label className="text-lg font-semibold flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-primary" /> Budget
               </Label>
               <Select
                 onValueChange={(value) => setFormData(prev => ({ ...prev, budget: value }))}
@@ -117,12 +114,10 @@ const ItineraryForm = () => {
 
             {/* Days */}
             <div className="space-y-3">
-              <Label htmlFor="days" className="text-lg font-semibold flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Number of Days
+              <Label className="text-lg font-semibold flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" /> Days
               </Label>
               <Input
-                id="days"
                 type="number"
                 min="1"
                 max="30"
@@ -137,18 +132,16 @@ const ItineraryForm = () => {
             {/* Interests */}
             <div className="space-y-4">
               <Label className="text-lg font-semibold flex items-center gap-2">
-                <Heart className="h-5 w-5 text-primary" />
-                Travel Interests
+                <Heart className="h-5 w-5 text-primary" /> Interests
               </Label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {interestsList.map((interest) => (
                   <div key={interest} className="flex items-center space-x-2">
                     <Checkbox
-                      id={interest}
                       checked={formData.interests.includes(interest)}
                       onCheckedChange={() => handleInterestToggle(interest)}
                     />
-                    <label htmlFor={interest} className="text-sm font-medium cursor-pointer">{interest}</label>
+                    <label className="text-sm font-medium cursor-pointer">{interest}</label>
                   </div>
                 ))}
               </div>
@@ -165,6 +158,5 @@ const ItineraryForm = () => {
 };
 
 export default ItineraryForm;
-
 
 
