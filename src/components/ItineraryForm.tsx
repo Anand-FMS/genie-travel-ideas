@@ -36,7 +36,7 @@ const ItineraryForm = () => {
     }));
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   try {
@@ -51,18 +51,20 @@ const ItineraryForm = () => {
       }
     );
 
-    // Read JSON returned directly from Gemini
+    // Raw Gemini JSON
     const data = await response.json();
 
-    // Save form data
+    // Save user inputs
     sessionStorage.setItem("itineraryData", JSON.stringify(formData));
 
-    // Extract Gemini's text output
+    // FIX: Correct Gemini path (your model returns content.parts[0].text)
     const aiText =
-      data?.content?.[0]?.parts?.[0]?.text ||  // correct Gemini path
-      JSON.stringify(data);                   // fallback
+      data?.content?.parts?.[0]?.text || // correct structure based on your screenshot
+      data?.parts?.[0]?.text ||          // secondary fallback
+      data?.text ||                      // generic fallback
+      JSON.stringify(data);              // last fallback
 
-    // Save itinerary
+    // Save the itinerary for Results page
     sessionStorage.setItem("generatedItinerary", aiText);
 
     navigate("/results");
