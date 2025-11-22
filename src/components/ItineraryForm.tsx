@@ -38,39 +38,36 @@ const ItineraryForm = () => {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    try {
-      const response = await fetch(
-        "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+  try {
+    const response = await fetch(
+      "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       }
+    );
 
-      // Receive clean JSON returned by Respond to Webhook (n8n)
-      const cleanJson = await response.json();
+    if (!response.ok) throw new Error("Server returned " + response.status);
 
-      // Save user inputs
-      sessionStorage.setItem("itineraryData", JSON.stringify(formData));
+    const data = await response.json();
 
-      // Save Gemini JSON
-      sessionStorage.setItem("generatedItinerary", JSON.stringify(cleanJson));
+    sessionStorage.setItem("itineraryData", JSON.stringify(formData));
 
-      navigate("/results");
+    // extract clean object (the model JSON)
+    const itinerary = data.result;
 
-    } catch (error) {
-      console.error("Error generating itinerary:", error);
-      alert("Could not connect to AI server or got invalid JSON. Check n8n & tunnel.");
-    }
-  };
+    sessionStorage.setItem("generatedItinerary", JSON.stringify(itinerary));
+
+    navigate("/results");
+  } catch (err) {
+    alert("Could not connect to AI server. Ensure n8n + tunnel are running.");
+    console.error(err);
+  }
+};
 
   return (
     <section className="py-16">
