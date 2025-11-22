@@ -120,7 +120,6 @@ const ItineraryForm = () => {
                 type="number"
                 min="1"
                 max="30"
-                placeholder="e.g., 7"
                 value={formData.days}
                 onChange={(e) => setFormData(prev => ({ ...prev, days: e.target.value }))}
                 required
