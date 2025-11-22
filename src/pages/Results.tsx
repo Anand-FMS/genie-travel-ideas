@@ -110,10 +110,10 @@ const Results = () => {
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Heart className="h-5 w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Interests</p>
-                  <p className="font-semibold">{itineraryObj.interests.join(", ")}</p>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Interests</p>
+                <p className="font-semibold">{itineraryObj.interests?.join(", ") || "N/A"}</p>
+              </div>
               </div>
 
             </div>
