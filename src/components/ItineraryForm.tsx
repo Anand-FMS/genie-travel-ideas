@@ -36,7 +36,7 @@ const ItineraryForm = () => {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   try {
@@ -51,18 +51,24 @@ const ItineraryForm = () => {
       }
     );
 
+    // Read raw JSON from n8n
     const data = await response.json();
 
-    // 🟢 FIX: save the form data so Results page can read it
+    // Save form data for Results page
     sessionStorage.setItem("itineraryData", JSON.stringify(formData));
 
-    // 🟢 Save AI response
-    sessionStorage.setItem(
-      "generatedItinerary",
-      data.itinerary || data.message || JSON.stringify(data)
-    );
+    // Extract the Gemini model output (correct structure)
+    const aiText =
+      data?.content?.[0]?.parts?.[0]?.text || // Gemini 2.5 Pro format
+      data?.text ||                           // fallback if structure changes
+      JSON.stringify(data);                   // absolute fallback
 
+    // Save AI-generated itinerary
+    sessionStorage.setItem("generatedItinerary", aiText);
+
+    // Go to results page
     navigate("/results");
+
   } catch (error) {
     console.error("Error generating itinerary:", error);
     alert("Could not connect to AI server. Check if n8n and the tunnel are running.");
