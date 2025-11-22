@@ -112,7 +112,11 @@ const Results = () => {
                 </div>
               <div>
                 <p className="text-sm text-muted-foreground">Interests</p>
-                <p className="font-semibold">{itineraryObj.interests?.join(", ") || "N/A"}</p>
+                <p className="font-semibold">
+                  {Array.isArray(itineraryObj.interests) && itineraryObj.interests.length > 0
+                    ? itineraryObj.interests.join(", ")
+                    : "N/A"}
+                </p>
               </div>
               </div>
 
