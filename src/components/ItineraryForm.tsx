@@ -1,10 +1,8 @@
-// src/pages/ItineraryForm.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { MapPin, DollarSign, Calendar, Heart } from "lucide-react";
@@ -25,7 +23,8 @@ const ItineraryForm = () => {
   const [formData, setFormData] = useState({
     destination: "",
     budget: "",
-    days: "",
+    dateFrom: "",
+    dateTo: "",
     interests: [] as string[],
   });
 
@@ -38,36 +37,33 @@ const ItineraryForm = () => {
     }));
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  try {
-    const response = await fetch(
-      "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      }
-    );
+    try {
+      const response = await fetch(
+        "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
 
-    if (!response.ok) throw new Error("Server returned " + response.status);
+      if (!response.ok) throw new Error(`Server returned ${response.status}`);
 
-    const data = await response.json();
+      const data = await response.json();
 
-    sessionStorage.setItem("itineraryData", JSON.stringify(formData));
+      sessionStorage.setItem("itineraryData", JSON.stringify(formData));
+      sessionStorage.setItem("generatedItinerary", JSON.stringify(data));
 
-    // extract clean object (the model JSON)
-    const itinerary = data.result;
+      navigate("/results");
 
-    sessionStorage.setItem("generatedItinerary", JSON.stringify(itinerary));
-
-    navigate("/results");
-  } catch (err) {
-    alert("Could not connect to AI server. Ensure n8n + tunnel are running.");
-    console.error(err);
-  }
-};
+    } catch (error) {
+      console.error("Error generating itinerary:", error);
+      alert("Could not connect — ensure n8n & tunnel are running and returning valid JSON.");
+    }
+  };
 
   return (
     <section className="py-16">
@@ -81,6 +77,7 @@ const ItineraryForm = () => {
                 <MapPin className="h-5 w-5 text-primary" /> Destination
               </Label>
               <Input
+                placeholder="e.g., Paris, Tokyo, Goa"
                 value={formData.destination}
                 onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
                 required
@@ -93,32 +90,38 @@ const ItineraryForm = () => {
               <Label className="text-lg font-semibold flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-primary" /> Budget
               </Label>
-              <Select
-                onValueChange={(value) => setFormData(prev => ({ ...prev, budget: value }))}
+              <Input
+                placeholder="e.g., medium"
+                value={formData.budget}
+                onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
                 required
-              >
-                <SelectTrigger className="h-12 text-lg">
-                  <SelectValue placeholder="Select your budget" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="luxury">Luxury</SelectItem>
-                </SelectContent>
-              </Select>
+                className="h-12 text-lg"
+              />
             </div>
 
-            {/* Days */}
+            {/* FROM DATE */}
             <div className="space-y-3">
               <Label className="text-lg font-semibold flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" /> Days
+                <Calendar className="h-5 w-5 text-primary" /> From Date
               </Label>
               <Input
-                type="number"
-                min="1"
-                max="30"
-                value={formData.days}
-                onChange={(e) => setFormData(prev => ({ ...prev, days: e.target.value }))}
+                type="date"
+                value={formData.dateFrom}
+                onChange={(e) => setFormData(prev => ({ ...prev, dateFrom: e.target.value }))}
+                required
+                className="h-12 text-lg"
+              />
+            </div>
+
+            {/* TO DATE */}
+            <div className="space-y-3">
+              <Label className="text-lg font-semibold flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" /> To Date
+              </Label>
+              <Input
+                type="date"
+                value={formData.dateTo}
+                onChange={(e) => setFormData(prev => ({ ...prev, dateTo: e.target.value }))}
                 required
                 className="h-12 text-lg"
               />
@@ -127,7 +130,7 @@ const ItineraryForm = () => {
             {/* Interests */}
             <div className="space-y-4">
               <Label className="text-lg font-semibold flex items-center gap-2">
-                <Heart className="h-5 w-5 text-primary" /> Interests
+                <Heart className="h-5 w-5 text-primary" /> Travel Interests
               </Label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {interestsList.map((interest) => (
@@ -153,5 +156,6 @@ const ItineraryForm = () => {
 };
 
 export default ItineraryForm;
+
 
 
