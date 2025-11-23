@@ -1,21 +1,15 @@
+// src/pages/ItineraryForm.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
-import { MapPin, DollarSign, Calendar, Heart } from "lucide-react";
+import { MapPin, DollarSign, Heart, Calendar } from "lucide-react";
 
-const interestsList = [
-  "Adventure",
-  "Beaches",
-  "Food",
-  "Culture",
-  "History",
-  "Nature",
-  "Nightlife"
-];
+const interestsList = ["Adventure", "Beaches", "Food", "Culture", "History", "Nature", "Nightlife"];
 
 const ItineraryForm = () => {
   const navigate = useNavigate();
@@ -23,8 +17,8 @@ const ItineraryForm = () => {
   const [formData, setFormData] = useState({
     destination: "",
     budget: "",
-    dateFrom: "",
-    dateTo: "",
+    fromDate: "",
+    toDate: "",
     interests: [] as string[],
   });
 
@@ -50,7 +44,7 @@ const ItineraryForm = () => {
         }
       );
 
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
+      if (!response.ok) throw new Error("Invalid response from server");
 
       const data = await response.json();
 
@@ -58,10 +52,9 @@ const ItineraryForm = () => {
       sessionStorage.setItem("generatedItinerary", JSON.stringify(data));
 
       navigate("/results");
-
     } catch (error) {
       console.error("Error generating itinerary:", error);
-      alert("Could not connect — ensure n8n & tunnel are running and returning valid JSON.");
+      alert("Could not connect to server — check n8n.");
     }
   };
 
@@ -77,7 +70,7 @@ const ItineraryForm = () => {
                 <MapPin className="h-5 w-5 text-primary" /> Destination
               </Label>
               <Input
-                placeholder="e.g., Paris, Tokyo, Goa"
+                placeholder="e.g., Japan, France, Goa"
                 value={formData.destination}
                 onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
                 required
@@ -90,38 +83,44 @@ const ItineraryForm = () => {
               <Label className="text-lg font-semibold flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-primary" /> Budget
               </Label>
-              <Input
-                placeholder="e.g., medium"
-                value={formData.budget}
-                onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
+              <Select
+                onValueChange={(value) => setFormData(prev => ({ ...prev, budget: value }))}
                 required
-                className="h-12 text-lg"
-              />
+              >
+                <SelectTrigger className="h-12 text-lg">
+                  <SelectValue placeholder="Select budget" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="luxury">Luxury</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* FROM DATE */}
+            {/* From Date */}
             <div className="space-y-3">
               <Label className="text-lg font-semibold flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" /> From Date
               </Label>
               <Input
                 type="date"
-                value={formData.dateFrom}
-                onChange={(e) => setFormData(prev => ({ ...prev, dateFrom: e.target.value }))}
+                value={formData.fromDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, fromDate: e.target.value }))}
                 required
                 className="h-12 text-lg"
               />
             </div>
 
-            {/* TO DATE */}
+            {/* To Date */}
             <div className="space-y-3">
               <Label className="text-lg font-semibold flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" /> To Date
               </Label>
               <Input
                 type="date"
-                value={formData.dateTo}
-                onChange={(e) => setFormData(prev => ({ ...prev, dateTo: e.target.value }))}
+                value={formData.toDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, toDate: e.target.value }))}
                 required
                 className="h-12 text-lg"
               />
@@ -130,7 +129,7 @@ const ItineraryForm = () => {
             {/* Interests */}
             <div className="space-y-4">
               <Label className="text-lg font-semibold flex items-center gap-2">
-                <Heart className="h-5 w-5 text-primary" /> Travel Interests
+                <Heart className="h-5 w-5 text-primary" /> Interests
               </Label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {interestsList.map((interest) => (
@@ -154,6 +153,9 @@ const ItineraryForm = () => {
     </section>
   );
 };
+
+export default ItineraryForm;
+
 
 export default ItineraryForm;
 
