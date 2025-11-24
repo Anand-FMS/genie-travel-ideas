@@ -35,12 +35,20 @@ const ItineraryForm = () => {
     e.preventDefault();
 
     try {
+      const payload = {
+        destination: formData.destination,
+        budget: formData.budget,
+        start_date: formData.fromDate,
+        end_date: formData.toDate,
+        interests: formData.interests,
+      };
+
       const response = await fetch(
         "https://nonformative-unsatisfied-fawn.ngrok-free.dev/webhook/tripgenie-webhook",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         }
       );
 
@@ -48,7 +56,7 @@ const ItineraryForm = () => {
 
       const data = await response.json();
 
-      sessionStorage.setItem("itineraryData", JSON.stringify(formData));
+      sessionStorage.setItem("itineraryData", JSON.stringify(payload));
       sessionStorage.setItem("generatedItinerary", JSON.stringify(data));
 
       navigate("/results");
@@ -153,9 +161,6 @@ const ItineraryForm = () => {
     </section>
   );
 };
-
-export default ItineraryForm;
-
 
 export default ItineraryForm;
 
