@@ -22,7 +22,8 @@ interface ItineraryDay {
 interface FullItinerary {
   trip_name?: string;
   destination?: string;
-  duration_days?: number;
+  start_date?: string;
+  end_date?: string;
   budget?: string;
   interests?: string[];
   itinerary?: ItineraryDay[];
@@ -47,19 +48,16 @@ const Results = () => {
       return;
     }
 
-    // Parse safely. raw should be stringified JSON (we saved JSON.stringify(data) in the form)
     let parsed: any = null;
     try {
       parsed = JSON.parse(raw);
     } catch (e) {
-      // If parse fails, try to extract JSON substring (handles cases where AI returned text that included JSON)
       try {
         const first = raw.indexOf("{");
         const last = raw.lastIndexOf("}");
         if (first !== -1 && last !== -1 && last > first) {
           parsed = JSON.parse(raw.slice(first, last + 1));
         } else {
-          // fallback to show raw text inside a simple itinerary
           parsed = {
             trip_name: "Generated Itinerary",
             itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: raw } }]
@@ -73,14 +71,11 @@ const Results = () => {
       }
     }
 
-    // Some workflows produce an envelope object { content: { parts: [{ text: "..." }] } }
-    // If so, try to parse the inner text as JSON.
     if (parsed?.content?.[0]?.parts?.[0]?.text) {
       const inner = parsed.content[0].parts[0].text;
       try {
         parsed = JSON.parse(inner);
       } catch {
-        // leave the inner text as description if it's not strict JSON
         parsed = {
           trip_name: parsed.trip_name || "Generated Itinerary",
           itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: inner } }]
@@ -132,30 +127,36 @@ const Results = () => {
           <Card className="p-6 shadow-md space-y-6">
             <h2 className="text-2xl font-bold">Trip Summary</h2>
             <div className="grid md:grid-cols-2 gap-6">
+              {/* Destination */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><MapPin className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Destination</p>
-                  <p className="font-semibold">{itineraryObj.destination || "To be determined"}</p>
+                  <p className="font-semibold">{itineraryObj.destination || "—"}</p>
                 </div>
               </div>
 
+              {/* Budget */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><DollarSign className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-sm text-muted-foreground">Budget</p>
-                  <p className="font-semibold">{itineraryObj.budget || "Flexible"}</p>
+                  <p className="font-semibold">{itineraryObj.budget || "—"}</p>
                 </div>
               </div>
 
+              {/* Start & End Dates */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Calendar className="h-5 w-5 text-primary" /></div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="font-semibold">{itineraryObj.duration_days ?? "—"} Days</p>
+                  <p className="text-sm text-muted-foreground">Dates</p>
+                  <p className="font-semibold">
+                    {itineraryObj.start_date || "—"} → {itineraryObj.end_date || "—"}
+                  </p>
                 </div>
               </div>
 
+              {/* Interests */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Heart className="h-5 w-5 text-primary" /></div>
                 <div>
@@ -166,6 +167,7 @@ const Results = () => {
             </div>
           </Card>
 
+          {/* Daily Itinerary */}
           <div className="space-y-8">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
             {!days || days.length === 0 ? (
@@ -236,4 +238,5 @@ const Results = () => {
 };
 
 export default Results;
+
 
