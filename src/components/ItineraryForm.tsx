@@ -78,7 +78,7 @@ const ItineraryForm = () => {
                 <MapPin className="h-5 w-5 text-primary" /> Destination
               </Label>
               <Input
-                placeholder="e.g., Japan, France, Goa"
+                
                 value={formData.destination}
                 onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
                 required
