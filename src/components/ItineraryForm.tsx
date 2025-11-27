@@ -13,6 +13,7 @@ const interestsList = ["Adventure", "Beaches", "Food", "Culture", "History", "Na
 
 const ItineraryForm = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     destination: "",
@@ -33,6 +34,7 @@ const ItineraryForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     try {
       const payload = {
@@ -63,13 +65,25 @@ const ItineraryForm = () => {
     } catch (error) {
       console.error("Error generating itinerary:", error);
       alert("Could not connect to server — check n8n.");
+      setIsLoading(false);
     }
   };
 
   return (
     <section className="py-16">
       <div className="container mx-auto px-4">
-        <Card className="max-w-3xl mx-auto p-8 shadow-lg border-border/50">
+        <Card className="max-w-3xl mx-auto p-8 shadow-lg border-border/50 relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-background/95 backdrop-blur-sm z-50 rounded-lg flex flex-col items-center justify-center gap-6">
+              <div className="flex gap-2">
+                <div className="w-3 h-3 rounded-full bg-primary animate-pulse" style={{ animationDelay: "0s" }}></div>
+                <div className="w-3 h-3 rounded-full bg-primary animate-pulse" style={{ animationDelay: "0.2s" }}></div>
+                <div className="w-3 h-3 rounded-full bg-primary animate-pulse" style={{ animationDelay: "0.4s" }}></div>
+              </div>
+              <p className="text-lg font-semibold text-foreground">Generating your personalized itinerary…</p>
+              <p className="text-sm text-muted-foreground">This may take a few moments</p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-8">
 
             {/* Destination */}
@@ -152,8 +166,8 @@ const ItineraryForm = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-14 text-lg font-bold">
-              Generate Itinerary
+            <Button type="submit" className="w-full h-14 text-lg font-bold" disabled={isLoading}>
+              {isLoading ? "Generating..." : "Generate Itinerary"}
             </Button>
           </form>
         </Card>
