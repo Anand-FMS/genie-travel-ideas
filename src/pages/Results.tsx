@@ -190,7 +190,7 @@ const Results = () => {
                 return (
                   <Card key={dayNum} className="p-6 shadow-md space-y-4">
                     <h3 className="text-2xl font-bold">
-                      Day {dayNum}{d?.theme ? : ${d.theme} : ""}
+                      Day {dayNum}{d?.theme ? ` - ${d.theme}` : ""}
                     </h3>
 
                     {d.morning && typeof d.morning === "object" && (
