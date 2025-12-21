@@ -40,32 +40,51 @@ const Results = () => {
   useEffect(() => {
     const raw = sessionStorage.getItem("generatedItinerary");
 
+    console.log("RAW generatedItinerary:", raw);
+
     if (!raw) {
       setErrorMessage("No generated itinerary found. Please generate one first.");
       return;
     }
 
     try {
-      // n8n Respond to Webhook returns ARRAY
-      const parsedResponse = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
 
-      if (
-        Array.isArray(parsedResponse) &&
-        parsedResponse.length > 0 &&
-        parsedResponse[0]["itinerary "]
-      ) {
-        // IMPORTANT: itinerary is STRINGIFIED JSON
-        const itineraryString = parsedResponse[0]["itinerary "];
+      let payload: any = null;
+
+      // Case 1: Array response (n8n default)
+      if (Array.isArray(parsed)) {
+        payload = parsed[0];
+      }
+      // Case 2: Object response
+      else if (typeof parsed === "object") {
+        payload = parsed;
+      }
+
+      if (!payload) {
+        throw new Error("Invalid payload structure");
+      }
+
+      // Case A: itinerary is STRING (stringified JSON)
+      const itineraryString =
+        payload["itinerary "] || payload["itinerary"];
+
+      if (typeof itineraryString === "string") {
         const itineraryJson = JSON.parse(itineraryString);
-
         setItineraryObj(itineraryJson);
         return;
       }
 
-      setErrorMessage("Unexpected response format from server.");
+      // Case B: itinerary already parsed (best case)
+      if (payload.itinerary && Array.isArray(payload.itinerary)) {
+        setItineraryObj(payload);
+        return;
+      }
+
+      throw new Error("Unsupported response structure");
     } catch (err) {
       console.error("Parsing error:", err);
-      setErrorMessage("Failed to parse itinerary data.");
+      setErrorMessage("Unexpected response format from server.");
     }
   }, []);
 
