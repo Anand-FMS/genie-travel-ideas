@@ -8,16 +8,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, DollarSign, Calendar, Heart, ArrowLeft } from "lucide-react";
 
-type Nullable<T> = T | undefined | null;
+/* ---------------- TYPES ---------------- */
 
 interface ItineraryDay {
   day?: number;
   theme?: string;
-  morning?: { title?: string; description?: string } | string;
-  afternoon?: { title?: string; description?: string } | string;
-  evening?: { title?: string; description?: string } | string;
-  food_recommendations?: { breakfast?: string; lunch?: string; dinner?: string };
-  local_tips?: string;
+  morning?: string;
+  afternoon?: string;
+  evening?: string;
 }
 
 interface FullItinerary {
@@ -30,63 +28,48 @@ interface FullItinerary {
   itinerary?: ItineraryDay[];
 }
 
+/* ---------------- COMPONENT ---------------- */
+
 const Results = () => {
   const navigate = useNavigate();
   const [itineraryObj, setItineraryObj] = useState<FullItinerary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const storedForm = sessionStorage.getItem("itineraryData");
-    const raw = sessionStorage.getItem("generatedItinerary");
+  /* ---------------- LOAD DATA ---------------- */
 
-    if (!storedForm) {
-      navigate("/");
-      return;
-    }
+  useEffect(() => {
+    const raw = sessionStorage.getItem("generatedItinerary");
 
     if (!raw) {
       setErrorMessage("No generated itinerary found. Please generate one first.");
       return;
     }
 
-    let parsed: any = null;
-
     try {
-      parsed = JSON.parse(raw);
-    } catch (e) {
-      try {
-        const first = raw.indexOf("{");
-        const last = raw.lastIndexOf("}");
-        if (first !== -1 && last !== -1 && last > first) {
-          parsed = JSON.parse(raw.slice(first, last + 1));
-        } else {
-          parsed = {
-            trip_name: "Generated Itinerary",
-            itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: raw } }],
-          };
-        }
-      } catch (e2) {
-        parsed = {
-          trip_name: "Generated Itinerary",
-          itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: raw } }],
-        };
-      }
-    }
+      // n8n Respond to Webhook returns ARRAY
+      const parsedResponse = JSON.parse(raw);
 
-    if (parsed?.content?.[0]?.parts?.[0]?.text) {
-      const inner = parsed.content[0].parts[0].text;
-      try {
-        parsed = JSON.parse(inner);
-      } catch {
-        parsed = {
-          trip_name: parsed.trip_name || "Generated Itinerary",
-          itinerary: [{ day: 1, theme: "Itinerary (raw)", morning: { title: "", description: inner } }],
-        };
-      }
-    }
+      if (
+        Array.isArray(parsedResponse) &&
+        parsedResponse.length > 0 &&
+        parsedResponse[0]["itinerary "]
+      ) {
+        // IMPORTANT: itinerary is STRINGIFIED JSON
+        const itineraryString = parsedResponse[0]["itinerary "];
+        const itineraryJson = JSON.parse(itineraryString);
 
-    setItineraryObj(parsed);
-  }, [navigate]);
+        setItineraryObj(itineraryJson);
+        return;
+      }
+
+      setErrorMessage("Unexpected response format from server.");
+    } catch (err) {
+      console.error("Parsing error:", err);
+      setErrorMessage("Failed to parse itinerary data.");
+    }
+  }, []);
+
+  /* ---------------- ERROR STATE ---------------- */
 
   if (errorMessage) {
     return (
@@ -96,7 +79,9 @@ const Results = () => {
           <div className="container mx-auto px-4 max-w-3xl text-center">
             <h2 className="text-2xl font-bold mb-4">Error</h2>
             <p className="text-muted-foreground">{errorMessage}</p>
-            <Button className="mt-6" onClick={() => navigate("/")}>Back</Button>
+            <Button className="mt-6" onClick={() => navigate("/")}>
+              Back to Home
+            </Button>
           </div>
         </main>
         <Footer />
@@ -106,12 +91,18 @@ const Results = () => {
 
   if (!itineraryObj) return null;
 
+  /* ---------------- DERIVED VALUES ---------------- */
+
   const interests =
     Array.isArray(itineraryObj.interests) && itineraryObj.interests.length > 0
       ? itineraryObj.interests.join(", ")
       : "—";
 
-  const days: ItineraryDay[] = Array.isArray(itineraryObj.itinerary) ? itineraryObj.itinerary : [];
+  const days = Array.isArray(itineraryObj.itinerary)
+    ? itineraryObj.itinerary
+    : [];
+
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -119,14 +110,20 @@ const Results = () => {
       <main className="flex-1 py-16">
         <div className="container mx-auto px-4 max-w-4xl space-y-8">
 
-          <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
+          <Button variant="ghost" onClick={() => navigate("/")} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Back to Home
           </Button>
 
           <div className="text-center space-y-3">
-            <h1 className="text-4xl font-bold">{itineraryObj.trip_name || "Your Itinerary"}</h1>
-            <p className="text-lg text-muted-foreground">A personalized AI-generated travel plan</p>
+            <h1 className="text-4xl font-bold">
+              {itineraryObj.trip_name || "Your Itinerary"}
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              A personalized AI-generated travel plan
+            </p>
           </div>
+
+          {/* -------- Trip Summary -------- */}
 
           <Card className="p-6 shadow-md space-y-6">
             <h2 className="text-2xl font-bold">Trip Summary</h2>
@@ -139,7 +136,9 @@ const Results = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Destination</p>
-                  <p className="font-semibold">{itineraryObj.destination || "—"}</p>
+                  <p className="font-semibold">
+                    {itineraryObj.destination || "—"}
+                  </p>
                 </div>
               </div>
 
@@ -149,7 +148,9 @@ const Results = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Budget</p>
-                  <p className="font-semibold">{itineraryObj.budget || "—"}</p>
+                  <p className="font-semibold">
+                    {itineraryObj.budget || "—"}
+                  </p>
                 </div>
               </div>
 
@@ -160,7 +161,8 @@ const Results = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Dates</p>
                   <p className="font-semibold">
-                    {itineraryObj.start_date || "—"} → {itineraryObj.end_date || "—"}
+                    {itineraryObj.start_date || "—"} →{" "}
+                    {itineraryObj.end_date || "—"}
                   </p>
                 </div>
               </div>
@@ -174,81 +176,48 @@ const Results = () => {
                   <p className="font-semibold">{interests}</p>
                 </div>
               </div>
+
             </div>
           </Card>
+
+          {/* -------- Daily Itinerary -------- */}
 
           <div className="space-y-8">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
 
-            {!days || days.length === 0 ? (
+            {days.length === 0 ? (
               <Card className="p-6">
-                <p className="text-muted-foreground">No daily items found in the AI response.</p>
+                <p className="text-muted-foreground">
+                  No daily items found in the AI response.
+                </p>
               </Card>
             ) : (
-              days.map((d, idx) => {
-                const dayNum = d?.day ?? idx + 1;
-                return (
-                  <Card key={dayNum} className="p-6 shadow-md space-y-4">
-                    <h3 className="text-2xl font-bold">
-                      Day {dayNum}{d?.theme ? ` - ${d.theme}` : ""}
-                    </h3>
+              days.map((day, idx) => (
+                <Card key={idx} className="p-6 shadow-md space-y-4">
+                  <h3 className="text-2xl font-bold">
+                    Day {day.day || idx + 1}
+                    {day.theme ? ` – ${day.theme}` : ""}
+                  </h3>
 
-                    {d.morning && typeof d.morning === "object" && (
-                      <div>
-                        <p className="font-semibold text-lg">🌅 Morning: {d.morning.title || ""}</p>
-                        <p className="text-muted-foreground">{d.morning.description || ""}</p>
-                      </div>
-                    )}
-                    {d.morning && typeof d.morning === "string" && (
-                      <p className="text-muted-foreground">{d.morning}</p>
-                    )}
+                  {day.morning && (
+                    <p className="text-muted-foreground">
+                      🌅 <strong>Morning:</strong> {day.morning}
+                    </p>
+                  )}
 
-                    {d.afternoon && typeof d.afternoon === "object" && (
-                      <div>
-                        <p className="font-semibold text-lg">🌞 Afternoon: {d.afternoon.title || ""}</p>
-                        <p className="text-muted-foreground">{d.afternoon.description || ""}</p>
-                      </div>
-                    )}
-                    {d.afternoon && typeof d.afternoon === "string" && (
-                      <p className="text-muted-foreground">{d.afternoon}</p>
-                    )}
+                  {day.afternoon && (
+                    <p className="text-muted-foreground">
+                      🌞 <strong>Afternoon:</strong> {day.afternoon}
+                    </p>
+                  )}
 
-                    {d.evening && typeof d.evening === "object" && (
-                      <div>
-                        <p className="font-semibold text-lg">🌙 Evening: {d.evening.title || ""}</p>
-                        <p className="text-muted-foreground">{d.evening.description || ""}</p>
-                      </div>
-                    )}
-                    {d.evening && typeof d.evening === "string" && (
-                      <p className="text-muted-foreground">{d.evening}</p>
-                    )}
-
-                    {d.food_recommendations && (
-                      <div>
-                        <p className="font-semibold text-lg">🍽 Food Recommendations</p>
-                        <ul className="list-disc ml-6 space-y-1 text-muted-foreground">
-                          {d.food_recommendations.breakfast && (
-                            <li><strong>Breakfast:</strong> {d.food_recommendations.breakfast}</li>
-                          )}
-                          {d.food_recommendations.lunch && (
-                            <li><strong>Lunch:</strong> {d.food_recommendations.lunch}</li>
-                          )}
-                          {d.food_recommendations.dinner && (
-                            <li><strong>Dinner:</strong> {d.food_recommendations.dinner}</li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-
-                    {d.local_tips && (
-                      <div>
-                        <p className="font-semibold text-lg">💡 Local Tips</p>
-                        <p className="text-muted-foreground">{d.local_tips}</p>
-                      </div>
-                    )}
-                  </Card>
-                );
-              })
+                  {day.evening && (
+                    <p className="text-muted-foreground">
+                      🌙 <strong>Evening:</strong> {day.evening}
+                    </p>
+                  )}
+                </Card>
+              ))
             )}
           </div>
         </div>
