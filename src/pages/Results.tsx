@@ -40,44 +40,76 @@ const Results = () => {
   useEffect(() => {
     const raw = sessionStorage.getItem("generatedItinerary");
 
-    console.log("RAW generatedItinerary:", raw);
-
     if (!raw) {
       setErrorMessage("No generated itinerary found. Please generate one first.");
       return;
     }
 
+    const safeJsonParse = (value: string) => {
+      try {
+        return { ok: true as const, data: JSON.parse(value) };
+      } catch (e) {
+        return { ok: false as const, error: e };
+      }
+    };
+
+    const parsePossiblyStringifiedObject = (value: unknown): FullItinerary | null => {
+      // Already an object with itinerary array
+      if (value && typeof value === "object") {
+        const v = value as any;
+        if (Array.isArray(v.itinerary)) return v as FullItinerary;
+      }
+
+      // Stringified JSON (possibly with extra whitespace/newlines)
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+
+        // First attempt: direct JSON.parse
+        const direct = safeJsonParse(trimmed);
+        if (direct.ok && direct.data && typeof direct.data === "object") {
+          return direct.data as FullItinerary;
+        }
+
+        // Second attempt: extract first {...} block (handles accidental leading/trailing text)
+        const firstBrace = trimmed.indexOf("{");
+        const lastBrace = trimmed.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          const slice = trimmed.slice(firstBrace, lastBrace + 1);
+          const sliced = safeJsonParse(slice);
+          if (sliced.ok && sliced.data && typeof sliced.data === "object") {
+            return sliced.data as FullItinerary;
+          }
+        }
+      }
+
+      return null;
+    };
+
     try {
       const parsed = JSON.parse(raw);
 
-      let payload: any = null;
+      // n8n can return an array of items or a single object
+      const payload: any = Array.isArray(parsed) ? parsed[0] : parsed;
 
-      // Case 1: Array response (n8n default)
-      if (Array.isArray(parsed)) {
-        payload = parsed[0];
-      }
-      // Case 2: Object response
-      else if (typeof parsed === "object") {
-        payload = parsed;
-      }
-
-      if (!payload) {
+      if (!payload || typeof payload !== "object") {
         throw new Error("Invalid payload structure");
       }
 
-      // Case A: itinerary is STRING (stringified JSON)
-      const itineraryString =
-        payload["itinerary "] || payload["itinerary"];
+      // n8n sometimes uses a trailing space key: "itinerary "
+      const itineraryCandidate =
+        payload["itinerary "] ?? payload["itinerary"] ?? payload.itinerary;
 
-      if (typeof itineraryString === "string") {
-        const itineraryJson = JSON.parse(itineraryString);
-        setItineraryObj(itineraryJson);
+      // Case A: key holds the real itinerary object as stringified JSON
+      const maybeFromCandidate = parsePossiblyStringifiedObject(itineraryCandidate);
+      if (maybeFromCandidate) {
+        setItineraryObj(maybeFromCandidate);
         return;
       }
 
-      // Case B: itinerary already parsed (best case)
-      if (payload.itinerary && Array.isArray(payload.itinerary)) {
-        setItineraryObj(payload);
+      // Case B: payload itself is already the full itinerary object
+      const maybeFromPayload = parsePossiblyStringifiedObject(payload);
+      if (maybeFromPayload) {
+        setItineraryObj(maybeFromPayload);
         return;
       }
 
@@ -108,7 +140,21 @@ const Results = () => {
     );
   }
 
-  if (!itineraryObj) return null;
+  if (!itineraryObj) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 py-16">
+          <div className="container mx-auto px-4 max-w-3xl text-center space-y-4">
+            <h1 className="text-2xl font-bold">Loading your itinerary…</h1>
+            <p className="text-muted-foreground">Parsing your results from the server response.</p>
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   /* ---------------- DERIVED VALUES ---------------- */
 
