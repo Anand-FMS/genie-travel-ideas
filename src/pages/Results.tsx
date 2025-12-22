@@ -1,5 +1,3 @@
-// src/pages/Results.tsx
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -20,6 +18,14 @@ interface ItineraryDay {
 
 interface FullItinerary {
   trip_name?: string;
+
+  /* ---- NEW (added, not replacing anything) ---- */
+  source?: string;
+  passengers?: number;
+  budget_per_person?: number;
+  total_cost?: number;
+
+  /* ---- EXISTING ---- */
   destination?: string;
   start_date?: string;
   end_date?: string;
@@ -53,30 +59,28 @@ const Results = () => {
       }
     };
 
-    const parsePossiblyStringifiedObject = (value: unknown): FullItinerary | null => {
-      // Already an object with itinerary array
+    const parsePossiblyStringifiedObject = (
+      value: unknown
+    ): FullItinerary | null => {
       if (value && typeof value === "object") {
         const v = value as any;
         if (Array.isArray(v.itinerary)) return v as FullItinerary;
       }
 
-      // Stringified JSON (possibly with extra whitespace/newlines)
       if (typeof value === "string") {
         const trimmed = value.trim();
 
-        // First attempt: direct JSON.parse
         const direct = safeJsonParse(trimmed);
-        if (direct.ok && direct.data && typeof direct.data === "object") {
+        if (direct.ok && typeof direct.data === "object") {
           return direct.data as FullItinerary;
         }
 
-        // Second attempt: extract first {...} block (handles accidental leading/trailing text)
         const firstBrace = trimmed.indexOf("{");
         const lastBrace = trimmed.lastIndexOf("}");
         if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
           const slice = trimmed.slice(firstBrace, lastBrace + 1);
           const sliced = safeJsonParse(slice);
-          if (sliced.ok && sliced.data && typeof sliced.data === "object") {
+          if (sliced.ok && typeof sliced.data === "object") {
             return sliced.data as FullItinerary;
           }
         }
@@ -87,26 +91,22 @@ const Results = () => {
 
     try {
       const parsed = JSON.parse(raw);
-
-      // n8n can return an array of items or a single object
       const payload: any = Array.isArray(parsed) ? parsed[0] : parsed;
 
       if (!payload || typeof payload !== "object") {
         throw new Error("Invalid payload structure");
       }
 
-      // n8n sometimes uses a trailing space key: "itinerary "
       const itineraryCandidate =
         payload["itinerary "] ?? payload["itinerary"] ?? payload.itinerary;
 
-      // Case A: key holds the real itinerary object as stringified JSON
-      const maybeFromCandidate = parsePossiblyStringifiedObject(itineraryCandidate);
+      const maybeFromCandidate =
+        parsePossiblyStringifiedObject(itineraryCandidate);
       if (maybeFromCandidate) {
         setItineraryObj(maybeFromCandidate);
         return;
       }
 
-      // Case B: payload itself is already the full itinerary object
       const maybeFromPayload = parsePossiblyStringifiedObject(payload);
       if (maybeFromPayload) {
         setItineraryObj(maybeFromPayload);
@@ -147,7 +147,9 @@ const Results = () => {
         <main className="flex-1 py-16">
           <div className="container mx-auto px-4 max-w-3xl text-center space-y-4">
             <h1 className="text-2xl font-bold">Loading your itinerary…</h1>
-            <p className="text-muted-foreground">Parsing your results from the server response.</p>
+            <p className="text-muted-foreground">
+              Parsing your results from the server response.
+            </p>
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-muted border-t-primary" />
           </div>
         </main>
@@ -167,6 +169,13 @@ const Results = () => {
     ? itineraryObj.itinerary
     : [];
 
+  const passengers = itineraryObj.passengers ?? 1;
+  const budgetPerPerson = itineraryObj.budget_per_person ?? 0;
+
+  const totalTripCost =
+    itineraryObj.total_cost ??
+    (budgetPerPerson > 0 ? passengers * budgetPerPerson : null);
+
   /* ---------------- UI ---------------- */
 
   return (
@@ -174,7 +183,6 @@ const Results = () => {
       <Navbar />
       <main className="flex-1 py-16">
         <div className="container mx-auto px-4 max-w-4xl space-y-8">
-
           <Button variant="ghost" onClick={() => navigate("/")} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Back to Home
           </Button>
@@ -195,6 +203,20 @@ const Results = () => {
 
             <div className="grid md:grid-cols-2 gap-6">
 
+              {/* Source */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">From</p>
+                  <p className="font-semibold">
+                    {itineraryObj.source || "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Destination */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <MapPin className="h-5 w-5 text-primary" />
@@ -207,19 +229,32 @@ const Results = () => {
                 </div>
               </div>
 
+              {/* Budget per person */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Budget</p>
+                  <p className="text-sm text-muted-foreground">Budget / Person</p>
                   <p className="font-semibold">
-                    {itineraryObj.budget || "—"}
+                    {budgetPerPerson > 0 ? `₹${budgetPerPerson}` : "—"}
                   </p>
                 </div>
               </div>
 
+              {/* Passengers */}
               <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Heart className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Passengers</p>
+                  <p className="font-semibold">{passengers}</p>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="flex items-center gap-3 md:col-span-2">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Calendar className="h-5 w-5 text-primary" />
                 </div>
@@ -232,16 +267,20 @@ const Results = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              {/* Total Trip Cost */}
+              <div className="flex items-center gap-3 md:col-span-2">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Heart className="h-5 w-5 text-primary" />
+                  <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Interests</p>
-                  <p className="font-semibold">{interests}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Estimated Total Trip Cost
+                  </p>
+                  <p className="font-semibold text-lg">
+                    {totalTripCost !== null ? `₹${totalTripCost}` : "—"}
+                  </p>
                 </div>
               </div>
-
             </div>
           </Card>
 
