@@ -1,10 +1,22 @@
+// src/pages/Results.tsx
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, DollarSign, Calendar, Heart, ArrowLeft } from "lucide-react";
+import {
+  MapPin,
+  DollarSign,
+  Calendar,
+  Heart,
+  ArrowLeft,
+  Hotel,
+  Bus,
+  Utensils,
+  Plane
+} from "lucide-react";
 
 /* ---------------- TYPES ---------------- */
 
@@ -16,22 +28,56 @@ interface ItineraryDay {
   evening?: string;
 }
 
+interface SourceTravel {
+  mode?: string;
+  from?: string;
+  to?: string;
+  cost_per_person?: number;
+  total_cost?: number;
+}
+
+interface HotelStay {
+  city?: string;
+  hotel_name?: string;
+  nights?: number;
+  cost_per_night?: number;
+  total_cost?: number;
+}
+
+interface LocalTransport {
+  day?: number;
+  description?: string;
+  cost?: number;
+}
+
+interface FoodCost {
+  avg_cost_per_person_per_day?: number;
+  total_days?: number;
+  total_cost?: number;
+}
+
+interface CostBreakdown {
+  source_to_destination_travel?: SourceTravel;
+  hotel_stays?: HotelStay[];
+  local_transport?: LocalTransport[];
+  food?: FoodCost;
+  grand_total?: {
+    per_person?: number;
+    overall?: number;
+  };
+}
+
 interface FullItinerary {
   trip_name?: string;
-
-  /* ---- NEW (added, not replacing anything) ---- */
   source?: string;
-  passengers?: number;
-  budget_per_person?: number;
-  total_cost?: number;
-
-  /* ---- EXISTING ---- */
   destination?: string;
   start_date?: string;
   end_date?: string;
-  budget?: string;
+  passengers?: number;
+  budget_per_person?: number;
   interests?: string[];
   itinerary?: ItineraryDay[];
+  cost_breakdown?: CostBreakdown;
 }
 
 /* ---------------- COMPONENT ---------------- */
@@ -45,136 +91,46 @@ const Results = () => {
 
   useEffect(() => {
     const raw = sessionStorage.getItem("generatedItinerary");
-
     if (!raw) {
-      setErrorMessage("No generated itinerary found. Please generate one first.");
+      setErrorMessage("No generated itinerary found.");
       return;
     }
 
-    const safeJsonParse = (value: string) => {
-      try {
-        return { ok: true as const, data: JSON.parse(value) };
-      } catch (e) {
-        return { ok: false as const, error: e };
-      }
-    };
-
-    const parsePossiblyStringifiedObject = (
-      value: unknown
-    ): FullItinerary | null => {
-      if (value && typeof value === "object") {
-        const v = value as any;
-        if (Array.isArray(v.itinerary)) return v as FullItinerary;
-      }
-
-      if (typeof value === "string") {
-        const trimmed = value.trim();
-
-        const direct = safeJsonParse(trimmed);
-        if (direct.ok && typeof direct.data === "object") {
-          return direct.data as FullItinerary;
-        }
-
-        const firstBrace = trimmed.indexOf("{");
-        const lastBrace = trimmed.lastIndexOf("}");
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-          const slice = trimmed.slice(firstBrace, lastBrace + 1);
-          const sliced = safeJsonParse(slice);
-          if (sliced.ok && typeof sliced.data === "object") {
-            return sliced.data as FullItinerary;
-          }
-        }
-      }
-
-      return null;
-    };
-
     try {
       const parsed = JSON.parse(raw);
-      const payload: any = Array.isArray(parsed) ? parsed[0] : parsed;
+      const payload = Array.isArray(parsed) ? parsed[0] : parsed;
+      const data =
+        payload["itinerary "] ??
+        payload["itinerary"] ??
+        payload;
 
-      if (!payload || typeof payload !== "object") {
-        throw new Error("Invalid payload structure");
-      }
-
-      const itineraryCandidate =
-        payload["itinerary "] ?? payload["itinerary"] ?? payload.itinerary;
-
-      const maybeFromCandidate =
-        parsePossiblyStringifiedObject(itineraryCandidate);
-      if (maybeFromCandidate) {
-        setItineraryObj(maybeFromCandidate);
-        return;
-      }
-
-      const maybeFromPayload = parsePossiblyStringifiedObject(payload);
-      if (maybeFromPayload) {
-        setItineraryObj(maybeFromPayload);
-        return;
-      }
-
-      throw new Error("Unsupported response structure");
-    } catch (err) {
-      console.error("Parsing error:", err);
+      setItineraryObj(
+        typeof data === "string" ? JSON.parse(data) : data
+      );
+    } catch (e) {
       setErrorMessage("Unexpected response format from server.");
     }
   }, []);
-
-  /* ---------------- ERROR STATE ---------------- */
 
   if (errorMessage) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <main className="flex-1 py-16">
-          <div className="container mx-auto px-4 max-w-3xl text-center">
-            <h2 className="text-2xl font-bold mb-4">Error</h2>
-            <p className="text-muted-foreground">{errorMessage}</p>
-            <Button className="mt-6" onClick={() => navigate("/")}>
-              Back to Home
-            </Button>
-          </div>
+        <main className="flex-1 flex items-center justify-center">
+          <Card className="p-6 text-center">
+            <p>{errorMessage}</p>
+            <Button onClick={() => navigate("/")}>Back</Button>
+          </Card>
         </main>
         <Footer />
       </div>
     );
   }
 
-  if (!itineraryObj) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 py-16">
-          <div className="container mx-auto px-4 max-w-3xl text-center space-y-4">
-            <h1 className="text-2xl font-bold">Loading your itinerary…</h1>
-            <p className="text-muted-foreground">
-              Parsing your results from the server response.
-            </p>
-            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-muted border-t-primary" />
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+  if (!itineraryObj) return null;
 
-  /* ---------------- DERIVED VALUES ---------------- */
-
-  const interests =
-    Array.isArray(itineraryObj.interests) && itineraryObj.interests.length > 0
-      ? itineraryObj.interests.join(", ")
-      : "—";
-
-  const days = Array.isArray(itineraryObj.itinerary)
-    ? itineraryObj.itinerary
-    : [];
-
-  const passengers = itineraryObj.passengers ?? 1;
-  const budgetPerPerson = itineraryObj.budget_per_person ?? 0;
-
-  const totalTripCost =
-    itineraryObj.total_cost ??
-    (budgetPerPerson > 0 ? passengers * budgetPerPerson : null);
+  const days = itineraryObj.itinerary ?? [];
+  const cost = itineraryObj.cost_breakdown;
 
   /* ---------------- UI ---------------- */
 
@@ -182,148 +138,100 @@ const Results = () => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 py-16">
-        <div className="container mx-auto px-4 max-w-4xl space-y-8">
-          <Button variant="ghost" onClick={() => navigate("/")} className="gap-2">
-            <ArrowLeft className="h-4 w-4" /> Back to Home
+        <div className="container mx-auto max-w-4xl space-y-10">
+
+          <Button variant="ghost" onClick={() => navigate("/")}>
+            <ArrowLeft /> Back
           </Button>
 
-          <div className="text-center space-y-3">
-            <h1 className="text-4xl font-bold">
-              {itineraryObj.trip_name || "Your Itinerary"}
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              A personalized AI-generated travel plan
-            </p>
-          </div>
-
-          {/* -------- Trip Summary -------- */}
-
-          <Card className="p-6 shadow-md space-y-6">
-            <h2 className="text-2xl font-bold">Trip Summary</h2>
-
-            <div className="grid md:grid-cols-2 gap-6">
-
-              {/* Source */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MapPin className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">From</p>
-                  <p className="font-semibold">
-                    {itineraryObj.source || "—"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Destination */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MapPin className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Destination</p>
-                  <p className="font-semibold">
-                    {itineraryObj.destination || "—"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Budget per person */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Budget / Person</p>
-                  <p className="font-semibold">
-                    {budgetPerPerson > 0 ? `₹${budgetPerPerson}` : "—"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Passengers */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Heart className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Passengers</p>
-                  <p className="font-semibold">{passengers}</p>
-                </div>
-              </div>
-
-              {/* Dates */}
-              <div className="flex items-center gap-3 md:col-span-2">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Dates</p>
-                  <p className="font-semibold">
-                    {itineraryObj.start_date || "—"} →{" "}
-                    {itineraryObj.end_date || "—"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Total Trip Cost */}
-              <div className="flex items-center gap-3 md:col-span-2">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Estimated Total Trip Cost
-                  </p>
-                  <p className="font-semibold text-lg">
-                    {totalTripCost !== null ? `₹${totalTripCost}` : "—"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
+          <h1 className="text-4xl font-bold text-center">
+            {itineraryObj.trip_name}
+          </h1>
 
           {/* -------- Daily Itinerary -------- */}
 
-          <div className="space-y-8">
+          <section className="space-y-6">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
-
-            {days.length === 0 ? (
-              <Card className="p-6">
-                <p className="text-muted-foreground">
-                  No daily items found in the AI response.
-                </p>
+            {days.map((day, i) => (
+              <Card key={i} className="p-6 space-y-2">
+                <h3 className="text-xl font-semibold">
+                  Day {day.day} – {day.theme}
+                </h3>
+                <p><strong>Morning:</strong> {day.morning}</p>
+                <p><strong>Afternoon:</strong> {day.afternoon}</p>
+                <p><strong>Evening:</strong> {day.evening}</p>
               </Card>
-            ) : (
-              days.map((day, idx) => (
-                <Card key={idx} className="p-6 shadow-md space-y-4">
-                  <h3 className="text-2xl font-bold">
-                    Day {day.day || idx + 1}
-                    {day.theme ? ` – ${day.theme}` : ""}
+            ))}
+          </section>
+
+          {/* -------- COST BREAKDOWN -------- */}
+
+          {cost && (
+            <section className="space-y-8">
+              <h2 className="text-3xl font-bold">Cost Breakdown</h2>
+
+              {/* Source to Destination */}
+              {cost.source_to_destination_travel && (
+                <Card className="p-6">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Plane /> Travel
                   </h3>
-
-                  {day.morning && (
-                    <p className="text-muted-foreground">
-                      🌅 <strong>Morning:</strong> {day.morning}
-                    </p>
-                  )}
-
-                  {day.afternoon && (
-                    <p className="text-muted-foreground">
-                      🌞 <strong>Afternoon:</strong> {day.afternoon}
-                    </p>
-                  )}
-
-                  {day.evening && (
-                    <p className="text-muted-foreground">
-                      🌙 <strong>Evening:</strong> {day.evening}
-                    </p>
-                  )}
+                  <p>
+                    {cost.source_to_destination_travel.mode} from{" "}
+                    {cost.source_to_destination_travel.from} to{" "}
+                    {cost.source_to_destination_travel.to}
+                  </p>
+                  <p>
+                    ₹{cost.source_to_destination_travel.cost_per_person} / person
+                  </p>
                 </Card>
-              ))
-            )}
-          </div>
+              )}
+
+              {/* Hotels */}
+              {cost.hotel_stays?.map((h, i) => (
+                <Card key={i} className="p-6">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Hotel /> {h.city}
+                  </h3>
+                  <p>{h.hotel_name}</p>
+                  <p>
+                    {h.nights} nights × ₹{h.cost_per_night}
+                  </p>
+                </Card>
+              ))}
+
+              {/* Local Transport */}
+              {cost.local_transport?.map((t, i) => (
+                <Card key={i} className="p-4">
+                  <p>
+                    <Bus /> Day {t.day}: {t.description} – ₹{t.cost}
+                  </p>
+                </Card>
+              ))}
+
+              {/* Food */}
+              {cost.food && (
+                <Card className="p-6">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Utensils /> Food
+                  </h3>
+                  <p>
+                    ₹{cost.food.avg_cost_per_person_per_day} per person/day
+                  </p>
+                  <p>Total: ₹{cost.food.total_cost}</p>
+                </Card>
+              )}
+
+              {/* Total */}
+              {cost.grand_total && (
+                <Card className="p-6 text-lg font-bold">
+                  Total Trip Cost: ₹{cost.grand_total.overall}
+                  <br />
+                  Per Person: ₹{cost.grand_total.per_person}
+                </Card>
+              )}
+            </section>
+          )}
         </div>
       </main>
       <Footer />
@@ -332,3 +240,4 @@ const Results = () => {
 };
 
 export default Results;
+
