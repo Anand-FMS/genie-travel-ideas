@@ -1,19 +1,11 @@
-// src/pages/ItineraryForm.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
-import { MapPin, DollarSign, Heart, Calendar } from "lucide-react";
+import { MapPin, DollarSign, Heart, Calendar, Users } from "lucide-react";
 
 const interestsList = [
   "Adventure",
@@ -30,10 +22,12 @@ const ItineraryForm = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
+    source: "",
     destination: "",
-    budget: "",
+    budget: 0,
     fromDate: "",
     toDate: "",
+    passengers: 1,
     interests: [] as string[],
   });
 
@@ -52,10 +46,12 @@ const ItineraryForm = () => {
 
     try {
       const payload = {
+        source: formData.source,
         destination: formData.destination,
-        budget: formData.budget,
         start_date: formData.fromDate,
         end_date: formData.toDate,
+        budget_per_person: formData.budget,
+        passengers: formData.passengers,
         interests: formData.interests,
       };
 
@@ -72,12 +68,10 @@ const ItineraryForm = () => {
 
       const data = await response.json();
 
-      console.log("Webhook response:", data);
-
       sessionStorage.setItem("itineraryData", JSON.stringify(payload));
       sessionStorage.setItem("generatedItinerary", JSON.stringify(data));
 
-      setIsLoading(false); // ✅ IMPORTANT
+      setIsLoading(false);
       navigate("/results");
     } catch (error) {
       console.error("Error generating itinerary:", error);
@@ -91,52 +85,70 @@ const ItineraryForm = () => {
       <div className="container mx-auto px-4">
         <Card className="max-w-3xl mx-auto p-8 shadow-lg relative">
           {isLoading && (
-            <div className="absolute inset-0 bg-background/95 backdrop-blur-sm z-50 rounded-lg flex flex-col items-center justify-center gap-6">
-              <p className="text-lg font-semibold">
-                Generating your personalized itinerary…
-              </p>
+            <div className="absolute inset-0 bg-background/95 z-50 flex items-center justify-center">
+              <p className="text-lg font-semibold">Generating itinerary…</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
+
+            {/* Source */}
+            <div>
+              <Label className="flex items-center gap-2">
+                <MapPin /> From
+              </Label>
+              <Input
+                required
+                value={formData.source}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, source: e.target.value }))
+                }
+                placeholder="e.g. Chennai"
+              />
+            </div>
+
+            {/* Destination */}
             <div>
               <Label>Destination</Label>
               <Input
+                required
                 value={formData.destination}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, destination: e.target.value }))
                 }
-                required
               />
             </div>
 
+            {/* Budget */}
             <div>
-              <Label>Budget</Label>
-              <Select
-                onValueChange={(v) =>
-                  setFormData((p) => ({ ...p, budget: v }))
+              <Label className="flex items-center gap-2">
+                <DollarSign /> Budget per person (₹)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                max={100000}
+                required
+                value={formData.budget}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    budget: Number(e.target.value),
+                  }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select budget" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="luxury">Luxury</SelectItem>
-                </SelectContent>
-              </Select>
+              />
             </div>
 
+            {/* Dates */}
             <div>
               <Label>From Date</Label>
               <Input
                 type="date"
+                required
                 value={formData.fromDate}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, fromDate: e.target.value }))
                 }
-                required
               />
             </div>
 
@@ -144,16 +156,39 @@ const ItineraryForm = () => {
               <Label>To Date</Label>
               <Input
                 type="date"
+                required
                 value={formData.toDate}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, toDate: e.target.value }))
                 }
-                required
               />
             </div>
 
+            {/* Passengers */}
             <div>
-              <Label>Interests</Label>
+              <Label className="flex items-center gap-2">
+                <Users /> Passengers
+              </Label>
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                required
+                value={formData.passengers}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    passengers: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+
+            {/* Interests */}
+            <div>
+              <Label className="flex items-center gap-2">
+                <Heart /> Interests
+              </Label>
               <div className="grid grid-cols-2 gap-3">
                 {interestsList.map((interest) => (
                   <div key={interest} className="flex items-center gap-2">
@@ -180,4 +215,3 @@ const ItineraryForm = () => {
 };
 
 export default ItineraryForm;
-
