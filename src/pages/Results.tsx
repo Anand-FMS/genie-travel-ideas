@@ -90,24 +90,79 @@ const Results = () => {
   /* ---------------- LOAD DATA ---------------- */
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("generatedItinerary");
+    const raw =
+      sessionStorage.getItem("generatedItinerary") ??
+      localStorage.getItem("generatedItinerary");
     if (!raw) {
       setErrorMessage("No generated itinerary found.");
       return;
     }
 
-    try {
-      const parsed = JSON.parse(raw);
-      const payload = Array.isArray(parsed) ? parsed[0] : parsed;
-      const data =
-        payload["itinerary "] ??
-        payload["itinerary"] ??
-        payload;
+    const safeJsonParse = (input: string) => {
+      try {
+        return JSON.parse(input);
+      } catch {
+        return null;
+      }
+    };
 
-      setItineraryObj(
-        typeof data === "string" ? JSON.parse(data) : data
-      );
+    const stripJsonCodeFence = (input: string) => {
+      const trimmed = input.trim();
+      // Handles responses like: ```json\n{...}\n```
+      if (trimmed.startsWith("```")) {
+        return trimmed
+          .replace(/^```[a-zA-Z]*\n?/, "")
+          .replace(/\n?```$/, "")
+          .trim();
+      }
+      return trimmed;
+    };
+
+    try {
+      const parsed = safeJsonParse(raw);
+      if (!parsed) throw new Error("Session storage is not valid JSON");
+
+      const payload = Array.isArray(parsed)
+        ? (parsed.find((item) => {
+            if (!item || typeof item !== "object") return false;
+            const keys = Object.keys(item as Record<string, unknown>);
+            return keys.some((k) => k.trim() === "itinerary");
+          }) ?? parsed[0])
+        : parsed;
+
+      if (!payload || (typeof payload !== "object" && typeof payload !== "string")) {
+        throw new Error("Payload is not an object");
+      }
+
+      // n8n sometimes sends { "itinerary ": "{...}" } (note trailing space)
+      const objPayload =
+        typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+
+      const itineraryKey = objPayload
+        ? Object.keys(objPayload).find((k) => k.trim() === "itinerary")
+        : undefined;
+
+      const maybeData = itineraryKey && objPayload ? objPayload[itineraryKey] : payload;
+
+      // Sometimes the itinerary is stringified (and may even be wrapped in ```json fences)
+      const parsedData =
+        typeof maybeData === "string"
+          ? safeJsonParse(stripJsonCodeFence(maybeData)) ?? maybeData
+          : maybeData;
+
+      // In some cases, we end up with a stringified JSON twice
+      const finalData =
+        typeof parsedData === "string"
+          ? safeJsonParse(stripJsonCodeFence(parsedData))
+          : parsedData;
+
+      if (!finalData || typeof finalData !== "object") {
+        throw new Error("Final itinerary data is not an object");
+      }
+
+      setItineraryObj(finalData as FullItinerary);
     } catch (e) {
+      console.error("Failed to parse itinerary:", e);
       setErrorMessage("Unexpected response format from server.");
     }
   }, []);
@@ -127,7 +182,20 @@ const Results = () => {
     );
   }
 
-  if (!itineraryObj) return null;
+  if (!itineraryObj) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <Card className="p-6 text-center">
+            <p>Loading itinerary…</p>
+            <Button variant="ghost" onClick={() => navigate("/")}>Back</Button>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const days = itineraryObj.itinerary ?? [];
   const cost = itineraryObj.cost_breakdown;
