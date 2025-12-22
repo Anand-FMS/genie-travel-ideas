@@ -71,6 +71,10 @@ const ItineraryForm = () => {
       sessionStorage.setItem("itineraryData", JSON.stringify(payload));
       sessionStorage.setItem("generatedItinerary", JSON.stringify(data));
 
+      // Fallback persistence for direct refresh / new tab
+      localStorage.setItem("itineraryData", JSON.stringify(payload));
+      localStorage.setItem("generatedItinerary", JSON.stringify(data));
+
       setIsLoading(false);
       navigate("/results");
     } catch (error) {
