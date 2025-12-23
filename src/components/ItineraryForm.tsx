@@ -24,7 +24,7 @@ const ItineraryForm = () => {
   const [formData, setFormData] = useState({
     source: "",
     destination: "",
-    budget: 0,
+    totalBudget: 0,
     fromDate: "",
     toDate: "",
     passengers: 1,
@@ -50,7 +50,7 @@ const ItineraryForm = () => {
         destination: formData.destination,
         start_date: formData.fromDate,
         end_date: formData.toDate,
-        budget_per_person: formData.budget,
+        total_budget: formData.totalBudget,
         passengers: formData.passengers,
         interests: formData.interests,
       };
@@ -123,21 +123,21 @@ const ItineraryForm = () => {
               />
             </div>
 
-            {/* Budget */}
+            {/* Total Budget */}
             <div>
               <Label className="flex items-center gap-2">
-                <DollarSign /> Budget per person (₹)
+                <DollarSign /> Total Trip Budget (₹)
               </Label>
               <Input
                 type="number"
                 min={0}
-                max={100000}
+                max={500000}
                 required
-                value={formData.budget}
+                value={formData.totalBudget}
                 onChange={(e) =>
                   setFormData((p) => ({
                     ...p,
-                    budget: Number(e.target.value),
+                    totalBudget: Number(e.target.value),
                   }))
                 }
               />
