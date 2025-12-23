@@ -131,7 +131,7 @@ const ItineraryForm = () => {
               <Input
                 type="number"
                 min={0}
-                max={500000}
+                max={5000000}
                 required
                 value={formData.totalBudget}
                 onChange={(e) =>
