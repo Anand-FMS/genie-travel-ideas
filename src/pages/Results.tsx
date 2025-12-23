@@ -318,7 +318,6 @@ const Results = () => {
                     <p className="text-lg font-bold">
                       Estimated Total Trip Cost: ₹{cost.grand_total.overall?.toLocaleString()}
                     </p>
-                    <p>Per Person: ₹{cost.grand_total.per_person?.toLocaleString()}</p>
                     {itineraryObj.total_budget !== undefined && cost.grand_total.overall !== undefined && (
                       <p className={cost.grand_total.overall <= itineraryObj.total_budget ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
                         {cost.grand_total.overall <= itineraryObj.total_budget ? "✓ Within budget" : "⚠ Exceeds budget"}
