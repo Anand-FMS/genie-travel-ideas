@@ -74,7 +74,7 @@ interface FullItinerary {
   start_date?: string;
   end_date?: string;
   passengers?: number;
-  budget_per_person?: number;
+  total_budget?: number;
   interests?: string[];
   itinerary?: ItineraryDay[];
   cost_breakdown?: CostBreakdown;
@@ -290,14 +290,27 @@ const Results = () => {
                 </Card>
               )}
 
-              {/* Total */}
-              {cost.grand_total && (
-                <Card className="p-6 text-lg font-bold">
-                  Total Trip Cost: ₹{cost.grand_total.overall}
-                  <br />
-                  Per Person: ₹{cost.grand_total.per_person}
-                </Card>
-              )}
+              {/* Budget Summary */}
+              <Card className="p-6 space-y-3">
+                {itineraryObj.total_budget !== undefined && (
+                  <p className="text-lg">
+                    <strong>Total Trip Budget:</strong> ₹{itineraryObj.total_budget.toLocaleString()}
+                  </p>
+                )}
+                {cost.grand_total && (
+                  <>
+                    <p className="text-lg font-bold">
+                      Estimated Total Trip Cost: ₹{cost.grand_total.overall?.toLocaleString()}
+                    </p>
+                    <p>Per Person: ₹{cost.grand_total.per_person?.toLocaleString()}</p>
+                    {itineraryObj.total_budget !== undefined && cost.grand_total.overall !== undefined && (
+                      <p className={cost.grand_total.overall <= itineraryObj.total_budget ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                        {cost.grand_total.overall <= itineraryObj.total_budget ? "✓ Within budget" : "⚠ Exceeds budget"}
+                      </p>
+                    )}
+                  </>
+                )}
+              </Card>
             </section>
           )}
         </div>
