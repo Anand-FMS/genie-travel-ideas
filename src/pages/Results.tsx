@@ -118,49 +118,65 @@ const Results = () => {
       return trimmed;
     };
 
+    const parseMaybeJson = (value: unknown): unknown => {
+      if (typeof value !== "string") return value;
+      const once = safeJsonParse(stripJsonCodeFence(value));
+      if (once === null) return value;
+      if (typeof once === "string") {
+        const twice = safeJsonParse(stripJsonCodeFence(once));
+        return twice ?? once;
+      }
+      return once;
+    };
+
+    const extractItineraryObject = (root: unknown): FullItinerary | null => {
+      const normalizedRoot = parseMaybeJson(root);
+
+      const candidates: unknown[] = Array.isArray(normalizedRoot)
+        ? normalizedRoot
+        : normalizedRoot != null
+          ? [normalizedRoot]
+          : [];
+
+      for (const c of candidates) {
+        const candidate = parseMaybeJson(c);
+
+        // If n8n returns array entries as strings, parse them too.
+        const candidateObj =
+          candidate && typeof candidate === "object" ? (candidate as Record<string, unknown>) : null;
+
+        if (candidateObj) {
+          const itineraryKey = Object.keys(candidateObj).find((k) => k.trim() === "itinerary");
+
+          // Case A: { "itinerary ": "{...}" }
+          if (itineraryKey) {
+            const v = parseMaybeJson(candidateObj[itineraryKey]);
+            if (v && typeof v === "object") return v as FullItinerary;
+          }
+
+          // Case B: already a FullItinerary-ish object
+          if ("itinerary" in candidateObj || "trip_name" in candidateObj || "destination" in candidateObj) {
+            return candidateObj as FullItinerary;
+          }
+        }
+
+        // Case C: candidate itself is the itinerary object after parsing
+        if (candidate && typeof candidate === "object") {
+          return candidate as FullItinerary;
+        }
+      }
+
+      return null;
+    };
+
     try {
-      const parsed = safeJsonParse(raw);
-      if (!parsed) throw new Error("Session storage is not valid JSON");
+      const parsedRaw = safeJsonParse(raw);
+      const root = parsedRaw ?? raw; // handle raw being double-stringified
 
-      const payload = Array.isArray(parsed)
-        ? (parsed.find((item) => {
-            if (!item || typeof item !== "object") return false;
-            const keys = Object.keys(item as Record<string, unknown>);
-            return keys.some((k) => k.trim() === "itinerary");
-          }) ?? parsed[0])
-        : parsed;
+      const extracted = extractItineraryObject(root);
+      if (!extracted) throw new Error("Could not extract itinerary object");
 
-      if (!payload || (typeof payload !== "object" && typeof payload !== "string")) {
-        throw new Error("Payload is not an object");
-      }
-
-      // n8n sometimes sends { "itinerary ": "{...}" } (note trailing space)
-      const objPayload =
-        typeof payload === "object" ? (payload as Record<string, unknown>) : null;
-
-      const itineraryKey = objPayload
-        ? Object.keys(objPayload).find((k) => k.trim() === "itinerary")
-        : undefined;
-
-      const maybeData = itineraryKey && objPayload ? objPayload[itineraryKey] : payload;
-
-      // Sometimes the itinerary is stringified (and may even be wrapped in ```json fences)
-      const parsedData =
-        typeof maybeData === "string"
-          ? safeJsonParse(stripJsonCodeFence(maybeData)) ?? maybeData
-          : maybeData;
-
-      // In some cases, we end up with a stringified JSON twice
-      const finalData =
-        typeof parsedData === "string"
-          ? safeJsonParse(stripJsonCodeFence(parsedData))
-          : parsedData;
-
-      if (!finalData || typeof finalData !== "object") {
-        throw new Error("Final itinerary data is not an object");
-      }
-
-      setItineraryObj(finalData as FullItinerary);
+      setItineraryObj(extracted);
     } catch (e) {
       console.error("Failed to parse itinerary:", e);
       setErrorMessage("Unexpected response format from server.");
