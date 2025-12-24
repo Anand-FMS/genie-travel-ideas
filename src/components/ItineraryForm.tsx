@@ -76,7 +76,9 @@ const ItineraryForm = () => {
       localStorage.setItem("generatedItinerary", JSON.stringify(data));
 
       setIsLoading(false);
-      navigate("/results");
+      navigate("/results", {
+        state: { generatedItinerary: data, itineraryData: payload },
+      });
     } catch (error) {
       console.error("Error generating itinerary:", error);
       alert("Could not connect to server — check n8n.");

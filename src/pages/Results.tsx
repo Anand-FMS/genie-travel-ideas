@@ -1,7 +1,7 @@
 // src/pages/Results.tsx
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
@@ -97,15 +97,26 @@ interface FullItinerary {
 
 const Results = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [itineraryObj, setItineraryObj] = useState<FullItinerary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   /* ---------------- LOAD DATA ---------------- */
 
   useEffect(() => {
-    const raw =
+    const state = location.state as
+      | { generatedItinerary?: unknown; itineraryData?: unknown }
+      | null
+      | undefined;
+
+    const rawFromState = state?.generatedItinerary ?? null;
+
+    const rawFromStorage =
       sessionStorage.getItem("generatedItinerary") ??
       localStorage.getItem("generatedItinerary");
+
+    const raw = rawFromState ?? rawFromStorage;
+
     if (!raw) {
       setErrorMessage("No generated itinerary found.");
       return;
@@ -144,44 +155,61 @@ const Results = () => {
     const extractItineraryObject = (root: unknown): FullItinerary | null => {
       const normalizedRoot = parseMaybeJson(root);
 
-      const candidates: unknown[] = Array.isArray(normalizedRoot)
-        ? normalizedRoot
-        : normalizedRoot != null
-          ? [normalizedRoot]
-          : [];
+      const looksLikeItinerary = (v: unknown): v is FullItinerary => {
+        if (!v || typeof v !== "object") return false;
+        const obj = v as Record<string, unknown>;
+        return (
+          "itinerary" in obj ||
+          "trip_name" in obj ||
+          "destination" in obj ||
+          "source" in obj
+        );
+      };
 
-      for (const c of candidates) {
-        const candidate = parseMaybeJson(c);
+      const walk = (node: unknown, depth: number): FullItinerary | null => {
+        const n = parseMaybeJson(node);
 
-        const candidateObj =
-          candidate && typeof candidate === "object"
-            ? (candidate as Record<string, unknown>)
-            : null;
+        if (looksLikeItinerary(n)) return n;
 
-        if (candidateObj) {
-          const itineraryKey = Object.keys(candidateObj).find((k) => k.trim() === "itinerary");
+        if (depth <= 0) return null;
 
+        if (Array.isArray(n)) {
+          for (const item of n) {
+            const found = walk(item, depth - 1);
+            if (found) return found;
+          }
+          return null;
+        }
+
+        if (n && typeof n === "object") {
+          const obj = n as Record<string, unknown>;
+
+          // If there's an "itinerary" key (even with trailing spaces), its value might be the actual object
+          const itineraryKey = Object.keys(obj).find((k) => k.trim() === "itinerary");
           if (itineraryKey) {
-            const v = parseMaybeJson(candidateObj[itineraryKey]);
-            if (v && typeof v === "object") return v as FullItinerary;
+            const v = parseMaybeJson(obj[itineraryKey]);
+            if (looksLikeItinerary(v)) return v;
+            if (Array.isArray(v)) {
+              const found = walk(v, depth - 1);
+              if (found) return found;
+            }
           }
 
-          if ("itinerary" in candidateObj || "trip_name" in candidateObj || "destination" in candidateObj) {
-            return candidateObj as FullItinerary;
+          // Otherwise, search any nested key (common n8n patterns: data, body, output, result)
+          for (const key of Object.keys(obj)) {
+            const found = walk(obj[key], depth - 1);
+            if (found) return found;
           }
         }
 
-        if (candidate && typeof candidate === "object") {
-          return candidate as FullItinerary;
-        }
-      }
+        return null;
+      };
 
-      return null;
+      return walk(normalizedRoot, 5);
     };
 
     try {
-      const parsedRaw = safeJsonParse(raw);
-      const root = parsedRaw ?? raw;
+      const root = typeof raw === "string" ? safeJsonParse(raw) ?? raw : raw;
 
       const extracted = extractItineraryObject(root);
       if (!extracted) throw new Error("Could not extract itinerary object");
