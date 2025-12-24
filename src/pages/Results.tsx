@@ -36,6 +36,15 @@ interface SourceTravel {
   total_cost?: number;
 }
 
+/* ✅ ADDED (return journey) */
+interface ReturnTravel {
+  mode?: string;
+  from?: string;
+  to?: string;
+  cost_per_person?: number;
+  total_cost?: number;
+}
+
 interface HotelStay {
   city?: string;
   hotel_name?: string;
@@ -58,6 +67,10 @@ interface FoodCost {
 
 interface CostBreakdown {
   source_to_destination_travel?: SourceTravel;
+
+  /* ✅ ADDED */
+  return_travel?: ReturnTravel;
+
   hotel_stays?: HotelStay[];
   local_transport?: LocalTransport[];
   food?: FoodCost;
@@ -108,7 +121,6 @@ const Results = () => {
 
     const stripJsonCodeFence = (input: string) => {
       const trimmed = input.trim();
-      // Handles responses like: ```json\n{...}\n```
       if (trimmed.startsWith("```")) {
         return trimmed
           .replace(/^```[a-zA-Z]*\n?/, "")
@@ -141,26 +153,24 @@ const Results = () => {
       for (const c of candidates) {
         const candidate = parseMaybeJson(c);
 
-        // If n8n returns array entries as strings, parse them too.
         const candidateObj =
-          candidate && typeof candidate === "object" ? (candidate as Record<string, unknown>) : null;
+          candidate && typeof candidate === "object"
+            ? (candidate as Record<string, unknown>)
+            : null;
 
         if (candidateObj) {
           const itineraryKey = Object.keys(candidateObj).find((k) => k.trim() === "itinerary");
 
-          // Case A: { "itinerary ": "{...}" }
           if (itineraryKey) {
             const v = parseMaybeJson(candidateObj[itineraryKey]);
             if (v && typeof v === "object") return v as FullItinerary;
           }
 
-          // Case B: already a FullItinerary-ish object
           if ("itinerary" in candidateObj || "trip_name" in candidateObj || "destination" in candidateObj) {
             return candidateObj as FullItinerary;
           }
         }
 
-        // Case C: candidate itself is the itinerary object after parsing
         if (candidate && typeof candidate === "object") {
           return candidate as FullItinerary;
         }
@@ -171,7 +181,7 @@ const Results = () => {
 
     try {
       const parsedRaw = safeJsonParse(raw);
-      const root = parsedRaw ?? raw; // handle raw being double-stringified
+      const root = parsedRaw ?? raw;
 
       const extracted = extractItineraryObject(root);
       if (!extracted) throw new Error("Could not extract itinerary object");
@@ -254,20 +264,35 @@ const Results = () => {
             <section className="space-y-8">
               <h2 className="text-3xl font-bold">Cost Breakdown</h2>
 
-              {/* Source to Destination */}
+              {/* Outbound */}
               {cost.source_to_destination_travel && (
                 <Card className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
-                    <Plane /> Travel
+                    <Plane /> Outbound Travel
                   </h3>
                   <p>
                     {cost.source_to_destination_travel.mode} from{" "}
                     {cost.source_to_destination_travel.from} to{" "}
                     {cost.source_to_destination_travel.to}
                   </p>
+                  <p>₹{cost.source_to_destination_travel.cost_per_person} per person</p>
+                  <p className="font-bold">Total: ₹{cost.source_to_destination_travel.total_cost}</p>
+                </Card>
+              )}
+
+              {/* Return */}
+              {cost.return_travel && (
+                <Card className="p-6">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Plane /> Return Travel
+                  </h3>
                   <p>
-                    ₹{cost.source_to_destination_travel.cost_per_person} / person
+                    {cost.return_travel.mode} from{" "}
+                    {cost.return_travel.from} to{" "}
+                    {cost.return_travel.to}
                   </p>
+                  <p>₹{cost.return_travel.cost_per_person} per person</p>
+                  <p className="font-bold">Total: ₹{cost.return_travel.total_cost}</p>
                 </Card>
               )}
 
@@ -278,18 +303,7 @@ const Results = () => {
                     <Hotel /> {h.city}
                   </h3>
                   <p>{h.hotel_name}</p>
-                  <p>
-                    {h.nights} nights × ₹{h.cost_per_night}
-                  </p>
-                </Card>
-              ))}
-
-              {/* Local Transport */}
-              {cost.local_transport?.map((t, i) => (
-                <Card key={i} className="p-4">
-                  <p>
-                    <Bus /> Day {t.day}: {t.description} – ₹{t.cost}
-                  </p>
+                  <p>{h.nights} nights × ₹{h.cost_per_night} = ₹{h.total_cost}</p>
                 </Card>
               ))}
 
@@ -299,35 +313,18 @@ const Results = () => {
                   <h3 className="font-semibold flex items-center gap-2">
                     <Utensils /> Food
                   </h3>
-                  <p>
-                    ₹{cost.food.avg_cost_per_person_per_day} per person/day
-                  </p>
                   <p>Total: ₹{cost.food.total_cost}</p>
                 </Card>
               )}
 
-              {/* Budget Summary */}
-              <Card className="p-6 space-y-3">
-                {itineraryObj.total_budget !== undefined && (
-                  <p className="text-lg">
-                    <strong>Total Trip Budget:</strong> ₹{itineraryObj.total_budget.toLocaleString()}
-                  </p>
-                )}
-                {cost.grand_total && (
-                  <>
-                    <p className="text-lg font-bold">
-                      Estimated Total Trip Cost: ₹{cost.grand_total.overall?.toLocaleString()}
-                    </p>
-                    {itineraryObj.total_budget !== undefined && cost.grand_total.overall !== undefined && (
-                      <p className={cost.grand_total.overall <= itineraryObj.total_budget ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                        {cost.grand_total.overall <= itineraryObj.total_budget ? "✓ Within budget" : "⚠ Exceeds budget"}
-                      </p>
-                    )}
-                  </>
-                )}
+              {/* Grand Total */}
+              <Card className="p-6 text-lg font-bold">
+                Grand Total: ₹{cost.grand_total?.overall}
               </Card>
+
             </section>
           )}
+
         </div>
       </main>
       <Footer />
