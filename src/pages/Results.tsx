@@ -36,7 +36,6 @@ interface SourceTravel {
   total_cost?: number;
 }
 
-/* ✅ ADDED (return journey) */
 interface ReturnTravel {
   mode?: string;
   from?: string;
@@ -67,10 +66,7 @@ interface FoodCost {
 
 interface CostBreakdown {
   source_to_destination_travel?: SourceTravel;
-
-  /* ✅ ADDED */
   return_travel?: ReturnTravel;
-
   hotel_stays?: HotelStay[];
   local_transport?: LocalTransport[];
   food?: FoodCost;
@@ -106,90 +102,17 @@ const Results = () => {
     const raw =
       sessionStorage.getItem("generatedItinerary") ??
       localStorage.getItem("generatedItinerary");
+
     if (!raw) {
       setErrorMessage("No generated itinerary found.");
       return;
     }
 
-    const safeJsonParse = (input: string) => {
-      try {
-        return JSON.parse(input);
-      } catch {
-        return null;
-      }
-    };
-
-    const stripJsonCodeFence = (input: string) => {
-      const trimmed = input.trim();
-      if (trimmed.startsWith("```")) {
-        return trimmed
-          .replace(/^```[a-zA-Z]*\n?/, "")
-          .replace(/\n?```$/, "")
-          .trim();
-      }
-      return trimmed;
-    };
-
-    const parseMaybeJson = (value: unknown): unknown => {
-      if (typeof value !== "string") return value;
-      const once = safeJsonParse(stripJsonCodeFence(value));
-      if (once === null) return value;
-      if (typeof once === "string") {
-        const twice = safeJsonParse(stripJsonCodeFence(once));
-        return twice ?? once;
-      }
-      return once;
-    };
-
-    const extractItineraryObject = (root: unknown): FullItinerary | null => {
-      const normalizedRoot = parseMaybeJson(root);
-
-      const candidates: unknown[] = Array.isArray(normalizedRoot)
-        ? normalizedRoot
-        : normalizedRoot != null
-          ? [normalizedRoot]
-          : [];
-
-      for (const c of candidates) {
-        const candidate = parseMaybeJson(c);
-
-        const candidateObj =
-          candidate && typeof candidate === "object"
-            ? (candidate as Record<string, unknown>)
-            : null;
-
-        if (candidateObj) {
-          const itineraryKey = Object.keys(candidateObj).find((k) => k.trim() === "itinerary");
-
-          if (itineraryKey) {
-            const v = parseMaybeJson(candidateObj[itineraryKey]);
-            if (v && typeof v === "object") return v as FullItinerary;
-          }
-
-          if ("itinerary" in candidateObj || "trip_name" in candidateObj || "destination" in candidateObj) {
-            return candidateObj as FullItinerary;
-          }
-        }
-
-        if (candidate && typeof candidate === "object") {
-          return candidate as FullItinerary;
-        }
-      }
-
-      return null;
-    };
-
     try {
-      const parsedRaw = safeJsonParse(raw);
-      const root = parsedRaw ?? raw;
-
-      const extracted = extractItineraryObject(root);
-      if (!extracted) throw new Error("Could not extract itinerary object");
-
-      setItineraryObj(extracted);
-    } catch (e) {
-      console.error("Failed to parse itinerary:", e);
-      setErrorMessage("Unexpected response format from server.");
+      const parsed = JSON.parse(raw);
+      setItineraryObj(parsed);
+    } catch {
+      setErrorMessage("Invalid itinerary data format.");
     }
   }, []);
 
@@ -225,6 +148,7 @@ const Results = () => {
 
   const days = itineraryObj.itinerary ?? [];
   const cost = itineraryObj.cost_breakdown;
+  const budget = itineraryObj.total_budget ?? 0;
 
   /* ---------------- UI ---------------- */
 
@@ -320,6 +244,11 @@ const Results = () => {
               {/* Grand Total */}
               <Card className="p-6 text-lg font-bold">
                 Grand Total: ₹{cost.grand_total?.overall}
+                {budget > 0 && (
+                  <p className={cost.grand_total?.overall! <= budget ? "text-green-600" : "text-red-600"}>
+                    {cost.grand_total?.overall! <= budget ? "✓ Within budget" : "⚠ Exceeds budget"}
+                  </p>
+                )}
               </Card>
 
             </section>
@@ -333,4 +262,3 @@ const Results = () => {
 };
 
 export default Results;
-
