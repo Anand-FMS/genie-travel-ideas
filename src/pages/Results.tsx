@@ -1,5 +1,3 @@
-// src/pages/Results.tsx
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -102,17 +100,96 @@ const Results = () => {
     const raw =
       sessionStorage.getItem("generatedItinerary") ??
       localStorage.getItem("generatedItinerary");
-
     if (!raw) {
       setErrorMessage("No generated itinerary found.");
       return;
     }
 
+    const safeJsonParse = (input: string) => {
+      try {
+        return JSON.parse(input);
+      } catch {
+        return null;
+      }
+    };
+
+    const stripJsonCodeFence = (input: string) => {
+      const trimmed = input.trim();
+      if (trimmed.startsWith("```")) {
+        return trimmed
+          .replace(/^```[a-zA-Z]*\n?/, "")
+          .replace(/\n?```$/, "")
+          .trim();
+      }
+      return trimmed;
+    };
+
+    const parseMaybeJson = (value: unknown): unknown => {
+      if (typeof value !== "string") return value;
+      const once = safeJsonParse(stripJsonCodeFence(value));
+      if (once === null) return value;
+      if (typeof once === "string") {
+        const twice = safeJsonParse(stripJsonCodeFence(once));
+        return twice ?? once;
+      }
+      return once;
+    };
+
+    const extractItineraryObject = (root: unknown): FullItinerary | null => {
+      const normalizedRoot = parseMaybeJson(root);
+
+      const candidates: unknown[] = Array.isArray(normalizedRoot)
+        ? normalizedRoot
+        : normalizedRoot != null
+        ? [normalizedRoot]
+        : [];
+
+      for (const c of candidates) {
+        const candidate = parseMaybeJson(c);
+
+        const candidateObj =
+          candidate && typeof candidate === "object"
+            ? (candidate as Record<string, unknown>)
+            : null;
+
+        if (candidateObj) {
+          const itineraryKey = Object.keys(candidateObj).find(
+            (k) => k.trim() === "itinerary"
+          );
+
+          if (itineraryKey) {
+            const v = parseMaybeJson(candidateObj[itineraryKey]);
+            if (v && typeof v === "object") return v as FullItinerary;
+          }
+
+          if (
+            "itinerary" in candidateObj ||
+            "trip_name" in candidateObj ||
+            "destination" in candidateObj
+          ) {
+            return candidateObj as FullItinerary;
+          }
+        }
+
+        if (candidate && typeof candidate === "object") {
+          return candidate as FullItinerary;
+        }
+      }
+
+      return null;
+    };
+
     try {
-      const parsed = JSON.parse(raw);
-      setItineraryObj(parsed);
-    } catch {
-      setErrorMessage("Invalid itinerary data format.");
+      const parsedRaw = safeJsonParse(raw);
+      const root = parsedRaw ?? raw;
+
+      const extracted = extractItineraryObject(root);
+      if (!extracted) throw new Error("Could not extract itinerary object");
+
+      setItineraryObj(extracted);
+    } catch (e) {
+      console.error("Failed to parse itinerary:", e);
+      setErrorMessage("Unexpected response format from server.");
     }
   }, []);
 
@@ -138,7 +215,9 @@ const Results = () => {
         <main className="flex-1 flex items-center justify-center">
           <Card className="p-6 text-center">
             <p>Loading itinerary…</p>
-            <Button variant="ghost" onClick={() => navigate("/")}>Back</Button>
+            <Button variant="ghost" onClick={() => navigate("/")}>
+              Back
+            </Button>
           </Card>
         </main>
         <Footer />
@@ -148,9 +227,6 @@ const Results = () => {
 
   const days = itineraryObj.itinerary ?? [];
   const cost = itineraryObj.cost_breakdown;
-  const budget = itineraryObj.total_budget ?? 0;
-
-  /* ---------------- UI ---------------- */
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -166,8 +242,6 @@ const Results = () => {
             {itineraryObj.trip_name}
           </h1>
 
-          {/* -------- Daily Itinerary -------- */}
-
           <section className="space-y-6">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
             {days.map((day, i) => (
@@ -182,13 +256,10 @@ const Results = () => {
             ))}
           </section>
 
-          {/* -------- COST BREAKDOWN -------- */}
-
           {cost && (
             <section className="space-y-8">
               <h2 className="text-3xl font-bold">Cost Breakdown</h2>
 
-              {/* Outbound */}
               {cost.source_to_destination_travel && (
                 <Card className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
@@ -204,7 +275,6 @@ const Results = () => {
                 </Card>
               )}
 
-              {/* Return */}
               {cost.return_travel && (
                 <Card className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
@@ -220,7 +290,6 @@ const Results = () => {
                 </Card>
               )}
 
-              {/* Hotels */}
               {cost.hotel_stays?.map((h, i) => (
                 <Card key={i} className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
@@ -231,7 +300,6 @@ const Results = () => {
                 </Card>
               ))}
 
-              {/* Food */}
               {cost.food && (
                 <Card className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
@@ -241,12 +309,13 @@ const Results = () => {
                 </Card>
               )}
 
-              {/* Grand Total */}
-              <Card className="p-6 text-lg font-bold">
-                Grand Total: ₹{cost.grand_total?.overall}
-                {budget > 0 && (
-                  <p className={cost.grand_total?.overall! <= budget ? "text-green-600" : "text-red-600"}>
-                    {cost.grand_total?.overall! <= budget ? "✓ Within budget" : "⚠ Exceeds budget"}
+              {/* ✅ UPDATED Grand Total (ONLY addition) */}
+              <Card className="p-6 space-y-2 text-lg font-bold">
+                <p>Grand Total: ₹{cost.grand_total?.overall}</p>
+
+                {cost.return_travel && (
+                  <p className="text-base text-muted-foreground">
+                    (Includes Return Tickets: ₹{cost.return_travel.total_cost})
                   </p>
                 )}
               </Card>
@@ -262,3 +331,4 @@ const Results = () => {
 };
 
 export default Results;
+
