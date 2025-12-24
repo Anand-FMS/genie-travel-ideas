@@ -1,3 +1,5 @@
+// src/pages/Results.tsx
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -34,6 +36,7 @@ interface SourceTravel {
   total_cost?: number;
 }
 
+/* ✅ NEW — Return Journey */
 interface ReturnTravel {
   mode?: string;
   from?: string;
@@ -64,7 +67,10 @@ interface FoodCost {
 
 interface CostBreakdown {
   source_to_destination_travel?: SourceTravel;
+
+  /* ✅ NEW */
   return_travel?: ReturnTravel;
+
   hotel_stays?: HotelStay[];
   local_transport?: LocalTransport[];
   food?: FoodCost;
@@ -141,8 +147,8 @@ const Results = () => {
       const candidates: unknown[] = Array.isArray(normalizedRoot)
         ? normalizedRoot
         : normalizedRoot != null
-        ? [normalizedRoot]
-        : [];
+          ? [normalizedRoot]
+          : [];
 
       for (const c of candidates) {
         const candidate = parseMaybeJson(c);
@@ -153,20 +159,14 @@ const Results = () => {
             : null;
 
         if (candidateObj) {
-          const itineraryKey = Object.keys(candidateObj).find(
-            (k) => k.trim() === "itinerary"
-          );
+          const itineraryKey = Object.keys(candidateObj).find((k) => k.trim() === "itinerary");
 
           if (itineraryKey) {
             const v = parseMaybeJson(candidateObj[itineraryKey]);
             if (v && typeof v === "object") return v as FullItinerary;
           }
 
-          if (
-            "itinerary" in candidateObj ||
-            "trip_name" in candidateObj ||
-            "destination" in candidateObj
-          ) {
+          if ("itinerary" in candidateObj || "trip_name" in candidateObj || "destination" in candidateObj) {
             return candidateObj as FullItinerary;
           }
         }
@@ -215,9 +215,7 @@ const Results = () => {
         <main className="flex-1 flex items-center justify-center">
           <Card className="p-6 text-center">
             <p>Loading itinerary…</p>
-            <Button variant="ghost" onClick={() => navigate("/")}>
-              Back
-            </Button>
+            <Button variant="ghost" onClick={() => navigate("/")}>Back</Button>
           </Card>
         </main>
         <Footer />
@@ -227,6 +225,9 @@ const Results = () => {
 
   const days = itineraryObj.itinerary ?? [];
   const cost = itineraryObj.cost_breakdown;
+  const passengers = itineraryObj.passengers ?? 1;
+
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -242,6 +243,8 @@ const Results = () => {
             {itineraryObj.trip_name}
           </h1>
 
+          {/* -------- Daily Itinerary -------- */}
+
           <section className="space-y-6">
             <h2 className="text-3xl font-bold">Daily Itinerary</h2>
             {days.map((day, i) => (
@@ -256,50 +259,66 @@ const Results = () => {
             ))}
           </section>
 
+          {/* -------- COST BREAKDOWN -------- */}
+
           {cost && (
             <section className="space-y-8">
               <h2 className="text-3xl font-bold">Cost Breakdown</h2>
 
+              {/* Outbound */}
               {cost.source_to_destination_travel && (
                 <Card className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
-                    <Plane /> Outbound Travel
+                    <Plane /> Travel
                   </h3>
                   <p>
                     {cost.source_to_destination_travel.mode} from{" "}
                     {cost.source_to_destination_travel.from} to{" "}
                     {cost.source_to_destination_travel.to}
                   </p>
-                  <p>₹{cost.source_to_destination_travel.cost_per_person} per person</p>
-                  <p className="font-bold">Total: ₹{cost.source_to_destination_travel.total_cost}</p>
+                  <p>
+                    ₹{cost.source_to_destination_travel.cost_per_person} / person
+                  </p>
+                  <p className="font-bold">
+                    Total: ₹{cost.source_to_destination_travel.total_cost}
+                  </p>
                 </Card>
               )}
 
+              {/* ✅ NEW Return Journey */}
               {cost.return_travel && (
-                <Card className="p-6">
+                <Card className="p-6 border-2 border-dashed">
                   <h3 className="font-semibold flex items-center gap-2">
-                    <Plane /> Return Travel
+                    <Plane /> Return Journey
                   </h3>
                   <p>
                     {cost.return_travel.mode} from{" "}
                     {cost.return_travel.from} to{" "}
                     {cost.return_travel.to}
                   </p>
-                  <p>₹{cost.return_travel.cost_per_person} per person</p>
-                  <p className="font-bold">Total: ₹{cost.return_travel.total_cost}</p>
+                  <p>
+                    ₹{cost.return_travel.cost_per_person} / person
+                  </p>
+                  <p className="font-bold">
+                    Total: ₹{cost.return_travel.total_cost}
+                  </p>
                 </Card>
               )}
 
+              {/* Hotels */}
               {cost.hotel_stays?.map((h, i) => (
                 <Card key={i} className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
                     <Hotel /> {h.city}
                   </h3>
                   <p>{h.hotel_name}</p>
-                  <p>{h.nights} nights × ₹{h.cost_per_night} = ₹{h.total_cost}</p>
+                  <p>
+                    {h.nights} nights × ₹{h.cost_per_night} = ₹{h.total_cost}
+                  </p>
                 </Card>
               ))}
 
+              {/* Food */}
               {cost.food && (
                 <Card className="p-6">
                   <h3 className="font-semibold flex items-center gap-2">
@@ -309,15 +328,9 @@ const Results = () => {
                 </Card>
               )}
 
-              {/* ✅ UPDATED Grand Total (ONLY addition) */}
-              <Card className="p-6 space-y-2 text-lg font-bold">
-                <p>Grand Total: ₹{cost.grand_total?.overall}</p>
-
-                {cost.return_travel && (
-                  <p className="text-base text-muted-foreground">
-                    (Includes Return Tickets: ₹{cost.return_travel.total_cost})
-                  </p>
-                )}
+              {/* Grand Total */}
+              <Card className="p-6 text-lg font-bold">
+                Grand Total: ₹{cost.grand_total?.overall}
               </Card>
 
             </section>
@@ -331,4 +344,5 @@ const Results = () => {
 };
 
 export default Results;
+
 
