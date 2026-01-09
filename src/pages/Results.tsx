@@ -4,41 +4,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Plane,
-  Train,
-  Hotel,
-  Check,
-  ChevronRight,
-  ChevronLeft,
-  IndianRupee,
-} from "lucide-react";
+import { Plane, Train, Hotel, Check, ChevronRight, IndianRupee } from "lucide-react";
 
 /* ---------------- TYPES ---------------- */
-
-interface ItineraryDay {
-  day?: number;
-  theme?: string;
-  morning?: string;
-  afternoon?: string;
-  evening?: string;
-}
-
-interface SourceTravel {
-  mode?: string;
-  from?: string;
-  to?: string;
-  cost_per_person?: number;
-  total_cost?: number;
-}
-
-interface ReturnTravel {
-  mode?: string;
-  from?: string;
-  to?: string;
-  cost_per_person?: number;
-  total_cost?: number;
-}
 
 interface HotelOption {
   hotel_id: string;
@@ -47,10 +15,34 @@ interface HotelOption {
   cost_per_room_per_night: number;
 }
 
-interface HotelsByCity {
+interface CityBlock {
   city: string;
   nights: number;
+  attractions: string[];
   hotels: HotelOption[];
+}
+
+interface Transport {
+  outbound: { mode: string; from: string; to: string; cost_per_person: number };
+  return: { mode: string; from: string; to: string; cost_per_person: number };
+}
+
+interface ResearchData {
+  cities: CityBlock[];
+  transport: Transport;
+}
+
+interface ItineraryDay {
+  day: number;
+  theme: string;
+  morning: string;
+  afternoon: string;
+  evening: string;
+}
+
+interface ItineraryData {
+  trip_name: string;
+  itinerary: ItineraryDay[];
 }
 
 interface SelectedHotel extends HotelOption {
@@ -60,213 +52,186 @@ interface SelectedHotel extends HotelOption {
   total_cost: number;
 }
 
-interface CostBreakdown {
-  source_to_destination_travel?: SourceTravel;
-  return_travel?: ReturnTravel;
-}
-
-interface FullItinerary {
-  trip_name?: string;
-  source?: string;
-  destination?: string;
-  passengers?: number;
-  total_budget?: number;
-  itinerary?: ItineraryDay[];
-  hotels_by_city?: HotelsByCity[];
-  cost_breakdown?: CostBreakdown;
-}
-
-/* ---------------- JSON EXTRACTION ---------------- */
-
-function stripJson(str: string) {
-  return str
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
-}
-
-function deepParse(input: any): any {
-  if (typeof input === "string") {
-    try {
-      return JSON.parse(stripJson(input));
-    } catch {
-      try {
-        return JSON.parse(JSON.parse(stripJson(input)));
-      } catch {
-        return input;
-      }
-    }
-  }
-  return input;
-}
-
-function extractItinerary(root: any): FullItinerary | null {
-  root = deepParse(root);
-
-  // Perplexity format
-  if (root?.choices?.[0]?.message?.content) {
-    return extractItinerary(root.choices[0].message.content);
-  }
-
-  // n8n format
-  if (Array.isArray(root)) {
-    for (const item of root) {
-      const found = extractItinerary(item);
-      if (found) return found;
-    }
-  }
-
-  if (root?.itinerary || root?.hotels_by_city) {
-    return root;
-  }
-
-  if (typeof root === "object") {
-    for (const k in root) {
-      const found = extractItinerary(root[k]);
-      if (found) return found;
-    }
-  }
-
-  return null;
-}
-
 /* ---------------- COMPONENT ---------------- */
 
 const Results = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [data, setData] = useState<FullItinerary | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const [cityIndex, setCityIndex] = useState(0);
+  const [research, setResearch] = useState<ResearchData | null>(null);
+  const [itinerary, setItinerary] = useState<ItineraryData | null>(null);
+  const [currentCityIndex, setCurrentCityIndex] = useState(0);
   const [selectedHotels, setSelectedHotels] = useState<Record<string, SelectedHotel>>({});
-  const [done, setDone] = useState(false);
+  const [loadingItinerary, setLoadingItinerary] = useState(false);
+
+  const userData = JSON.parse(localStorage.getItem("tripInput") || "{}");
+  const passengers = userData.passengers || 1;
+  const totalBudget = userData.total_budget || 0;
+
+  /* ---------------- Load Research Data ---------------- */
 
   useEffect(() => {
-    const raw =
-      (location.state as any)?.generatedItinerary ||
-      sessionStorage.getItem("generatedItinerary") ||
-      localStorage.getItem("generatedItinerary");
+    const raw = localStorage.getItem("researchData");
+    if (!raw) return;
 
-    if (!raw) {
-      setError("No itinerary found");
-      return;
-    }
-
-    try {
-      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-      const extracted = extractItinerary(parsed);
-
-      if (!extracted) {
-        setError("Itinerary data could not be extracted.");
-      } else {
-        setData(extracted);
-      }
-    } catch {
-      setError("Invalid data from server.");
-    }
+    setResearch(JSON.parse(raw));
   }, []);
 
-  if (error) {
+  if (!research) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center">
-          <Card className="p-8 space-y-4 text-center">
-            <p>{error}</p>
-            <Button onClick={() => navigate("/")}>Go Home</Button>
-          </Card>
-        </main>
-        <Footer />
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading research data...</p>
       </div>
     );
   }
 
-  if (!data) return null;
+  const cities = research.cities;
+  const currentCity = cities[currentCityIndex];
 
-  const passengers = data.passengers || 1;
-  const cities = data.hotels_by_city || [];
-  const city = cities[cityIndex];
+  /* ---------------- Calculations ---------------- */
 
-  const travel =
-    (data.cost_breakdown?.source_to_destination_travel?.total_cost || 0) +
-    (data.cost_breakdown?.return_travel?.total_cost || 0);
+  const travelCost =
+    (research.transport.outbound.cost_per_person +
+      research.transport.return.cost_per_person) *
+    passengers;
 
-  const hotelCost = Object.values(selectedHotels).reduce((s, h) => s + h.total_cost, 0);
-  const total = travel + hotelCost;
+  const hotelTotal = Object.values(selectedHotels).reduce((sum, h) => sum + h.total_cost, 0);
+
+  const grandTotal = travelCost + hotelTotal;
+
+  /* ---------------- Handlers ---------------- */
+
+  const selectHotel = (hotel: HotelOption) => {
+    const rooms = Math.ceil(passengers / hotel.room_capacity);
+    const total = rooms * hotel.cost_per_room_per_night * currentCity.nights;
+
+    setSelectedHotels((prev) => ({
+      ...prev,
+      [currentCity.city]: {
+        ...hotel,
+        city: currentCity.city,
+        nights: currentCity.nights,
+        rooms,
+        total_cost: total,
+      },
+    }));
+  };
+
+  const nextCity = () => {
+    if (currentCityIndex < cities.length - 1) {
+      setCurrentCityIndex(currentCityIndex + 1);
+    } else {
+      generateItinerary();
+    }
+  };
+
+  const generateItinerary = async () => {
+    setLoadingItinerary(true);
+
+    const res = await fetch("/api/itinerary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...userData,
+        selected_hotels: Object.values(selectedHotels),
+      }),
+    });
+
+    const data = await res.json();
+    setItinerary(data);
+    setLoadingItinerary(false);
+  };
+
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
+      <main className="flex-1 container mx-auto max-w-5xl py-8 space-y-8">
 
-      <main className="flex-1 container max-w-6xl py-10 space-y-10">
+        {/* Travel Cost */}
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-2">Travel Tickets</h2>
+          <p>
+            {research.transport.outbound.mode.toUpperCase()} {research.transport.outbound.from} →{" "}
+            {research.transport.outbound.to} — ₹
+            {research.transport.outbound.cost_per_person} × {passengers}
+          </p>
+          <p>
+            Return — ₹{research.transport.return.cost_per_person} × {passengers}
+          </p>
+          <p className="font-bold mt-2">Total: ₹{travelCost.toLocaleString()}</p>
+        </Card>
 
-        <h1 className="text-4xl font-bold text-center">{data.trip_name}</h1>
+        {/* Hotel Selection */}
+        {!itinerary && (
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-4">
+              Choose hotel in {currentCity.city} ({currentCity.nights} nights)
+            </h2>
 
-        {/* Itinerary */}
-        {data.itinerary?.map((d, i) => (
-          <Card key={i} className="p-4">
-            <h3 className="font-bold">Day {d.day} – {d.theme}</h3>
-            <p><b>Morning:</b> {d.morning}</p>
-            <p><b>Afternoon:</b> {d.afternoon}</p>
-            <p><b>Evening:</b> {d.evening}</p>
-          </Card>
-        ))}
+            <div className="grid gap-4">
+              {currentCity.hotels.map((h) => {
+                const rooms = Math.ceil(passengers / h.room_capacity);
+                const total = rooms * h.cost_per_room_per_night * currentCity.nights;
+                const selected = selectedHotels[currentCity.city]?.hotel_id === h.hotel_id;
 
-        {/* Hotel selection */}
-        {!done && city && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold">Choose hotel for {city.city}</h2>
-
-            {city.hotels.map(h => {
-              const rooms = Math.ceil(passengers / h.room_capacity);
-              const cost = rooms * h.cost_per_room_per_night * city.nights;
-
-              return (
-                <Card
-                  key={h.hotel_id}
-                  onClick={() =>
-                    setSelectedHotels({
-                      ...selectedHotels,
-                      [city.city]: {
-                        ...h,
-                        city: city.city,
-                        nights: city.nights,
-                        rooms,
-                        total_cost: cost,
-                      },
-                    })
-                  }
-                  className="p-4 cursor-pointer"
-                >
-                  <p className="font-bold">{h.hotel_name}</p>
-                  <p>Total: ₹{cost}</p>
-                </Card>
-              );
-            })}
+                return (
+                  <Card
+                    key={h.hotel_id}
+                    onClick={() => selectHotel(h)}
+                    className={`p-4 cursor-pointer ${selected ? "ring-2 ring-primary" : ""}`}
+                  >
+                    <h3 className="font-bold">{h.hotel_name}</h3>
+                    <p>
+                      ₹{h.cost_per_room_per_night}/room/night • Capacity {h.room_capacity}
+                    </p>
+                    <p className="font-bold">Total: ₹{total.toLocaleString()}</p>
+                  </Card>
+                );
+              })}
+            </div>
 
             <Button
-              onClick={() => {
-                if (cityIndex === cities.length - 1) setDone(true);
-                else setCityIndex(cityIndex + 1);
-              }}
+              className="mt-4"
+              disabled={!selectedHotels[currentCity.city]}
+              onClick={nextCity}
             >
-              Next
+              {currentCityIndex === cities.length - 1 ? "Generate Itinerary" : "Next City"}
+              <ChevronRight className="ml-2 w-4 h-4" />
             </Button>
-          </section>
-        )}
-
-        {/* Final cost */}
-        {done && (
-          <Card className="p-6 text-xl font-bold">
-            Total Trip Cost: ₹{total}
           </Card>
         )}
 
-      </main>
+        {/* Final Summary */}
+        {itinerary && (
+          <>
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-2">Trip Cost</h2>
+              <p>Travel: ₹{travelCost.toLocaleString()}</p>
+              <p>Hotels: ₹{hotelTotal.toLocaleString()}</p>
+              <p className="font-bold">Total: ₹{grandTotal.toLocaleString()}</p>
+              <p className={grandTotal <= totalBudget ? "text-green-600" : "text-red-600"}>
+                {grandTotal <= totalBudget
+                  ? "Within budget"
+                  : `Exceeds by ₹${(grandTotal - totalBudget).toLocaleString()}`}
+              </p>
+            </Card>
 
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4">{itinerary.trip_name}</h2>
+              {itinerary.itinerary.map((d) => (
+                <div key={d.day} className="mb-4">
+                  <h3 className="font-bold">Day {d.day} – {d.theme}</h3>
+                  <p><b>Morning:</b> {d.morning}</p>
+                  <p><b>Afternoon:</b> {d.afternoon}</p>
+                  <p><b>Evening:</b> {d.evening}</p>
+                </div>
+              ))}
+            </Card>
+          </>
+        )}
+      </main>
       <Footer />
     </div>
   );
