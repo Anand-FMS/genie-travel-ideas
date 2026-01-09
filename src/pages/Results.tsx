@@ -100,6 +100,42 @@ interface FullItinerary {
   cost_breakdown?: CostBreakdown;
 }
 
+function stripJsonCodeFence(input: string) {
+  return input
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+}
+
+function extractFullItinerary(maybe: any): FullItinerary | null {
+  if (!maybe) return null;
+
+  // n8n often returns: { "itinerary ": "{ ...json... }" }
+  const direct = maybe?.["itinerary "] ?? maybe?.itinerary;
+  if (typeof direct === "string") {
+    try {
+      const cleaned = stripJsonCodeFence(direct);
+      return JSON.parse(cleaned) as FullItinerary;
+    } catch {
+      // Sometimes double-stringified
+      try {
+        const cleaned = stripJsonCodeFence(direct);
+        return JSON.parse(JSON.parse(cleaned)) as FullItinerary;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  // Already the object
+  if (typeof maybe === "object" && (maybe.trip_name || Array.isArray(maybe.itinerary))) {
+    return maybe as FullItinerary;
+  }
+
+  return null;
+}
+
 /* ---------------- COMPONENT ---------------- */
 
 const Results = () => {
@@ -127,11 +163,37 @@ const Results = () => {
 
     try {
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-      setItineraryObj(parsed);
+      const extracted = extractFullItinerary(parsed);
+
+      if (!extracted) {
+        setErrorMessage("Unexpected response format from server.");
+        return;
+      }
+
+      setItineraryObj(extracted);
     } catch {
       setErrorMessage("Invalid itinerary format.");
     }
-  }, []);
+  }, [location.state]);
+
+  const cost = itineraryObj?.cost_breakdown;
+
+  /* ---------------- DYNAMIC TOTAL ---------------- */
+
+  useEffect(() => {
+    if (!itineraryObj) return;
+
+    let hotelTotal = 0;
+    Object.values(selectedHotels).forEach((h: any) => {
+      hotelTotal += h.total_cost;
+    });
+
+    const travel =
+      (cost?.source_to_destination_travel?.total_cost || 0) +
+      (cost?.return_travel?.total_cost || 0);
+
+    setDynamicTotal(hotelTotal + travel);
+  }, [selectedHotels, itineraryObj]);
 
   if (errorMessage) {
     return (
@@ -148,25 +210,8 @@ const Results = () => {
   if (!itineraryObj) return null;
 
   const passengers = itineraryObj.passengers || 1;
-  const cost = itineraryObj.cost_breakdown;
   const hotelCities = itineraryObj.hotels_by_city || [];
   const currentCity = hotelCities[currentCityIndex];
-
-  /* ---------------- DYNAMIC TOTAL ---------------- */
-
-  useEffect(() => {
-    let hotelTotal = 0;
-
-    Object.values(selectedHotels).forEach((h: any) => {
-      hotelTotal += h.total_cost;
-    });
-
-    const travel =
-      (cost?.source_to_destination_travel?.total_cost || 0) +
-      (cost?.return_travel?.total_cost || 0);
-
-    setDynamicTotal(hotelTotal + travel);
-  }, [selectedHotels]);
 
   /* ---------------- UI ---------------- */
 
